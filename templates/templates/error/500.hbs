@@ -1,0 +1,12 @@
+<main role="main" class="row">
+  <div class="columns nine">
+    <h1>Something went wrong</h1>
+    <p>Something went wrong on the site. Please try again. If the problem persists, panic!</p>
+    {{#if errorString}}
+      {{markdown errorString}}
+    {{/if}}
+  </div>
+  <div class="columns three">
+    {{> sidebar}}
+  </div>
+</main>

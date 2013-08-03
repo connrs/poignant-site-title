@@ -1,0 +1,33 @@
+<main role="main" class="row">
+<div class="columns nine">
+  {{> flash_message_alert}}
+  <h1>Approve post: {{post.title}}</h2>
+  <p>To approve this post, press Approve. Press Reject to reject the changes.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+    <input type="hidden" name="post_id" value="{{{attrSafe post.post_id}}}">
+    <div class="full">
+      <label>Title:</label>
+      <p class="input_substitute">{{post.title}}</p>
+    </div>
+    <div class="full">
+      <label>Summary:</label>
+      <p class="input_substitute">{{post.summary}}</p>
+    </div>
+    <div class="full">
+      <label>Content:</label>
+      <div class="input_substitute">
+        {{markdown post.content}}
+      </div>
+    </div>
+    <div class="buttons">
+      <button role="button" type="submit" name="post_status_type_id" value="3">Approve</button>
+      <button role="button" type="submit" name="post_status_type_id" value="4">Reject</button>
+      <a role="button" href="{{config.admin_base_address}}/posts/approve">Exit</a>
+    </div>
+  </form>
+</div>
+<div class="columns three">
+  {{> admin_sidebar}}
+</div>
+</main>

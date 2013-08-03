@@ -1,0 +1,12 @@
+<section role="main">
+<h1>New account</h1>
+<p>To register your account with the site, you should enter your details below.</p>
+<form method="post" action="{{config.base_address}}/account/new">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+    <div>
+        <label for="account_name">Name:</label>
+        <input type="text" name="name" id="account_name" value="">
+    </div>
+    <input type="submit" value="Register">
+</form>
+</section>

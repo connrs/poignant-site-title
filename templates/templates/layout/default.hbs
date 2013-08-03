@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<!--[if lt IE 7 ]><html dir="ltr" lang="en-GB" class="no-js ie ie6 lte7 lte8 lte9"><![endif]-->
+<!--[if IE 7 ]><html dir="ltr" lang="en-GB" class="no-js ie ie7 lte7 lte8 lte9"><![endif]-->
+<!--[if IE 8 ]><html dir="ltr" lang="en-GB" class="no-js ie ie8 lte8 lte9"><![endif]-->
+<!--[if IE 9 ]><html dir="ltr" lang="en-GB" class="no-js ie ie9 lte9"><![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!--><html dir="ltr" lang="en-GB" class="no-js"><!--<![endif]-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="initial-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+<link rel="stylesheet" href="{{{config.assets_base_address}}}/css/default.css">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Asap:400,700,700italic">
+<link rel="feed alternate" type="application/rss+xml" href="{{{config.base_address}}}/posts.rss" title="Blog">
+<link rel="icon" type="image/x-icon" href="{{{config.assets_base_address}}}/img/favicon.png">
+{{#eachkeys config.linkrel}}
+<link rel="{{this.key}}" href="{{this.value}}">
+{{/eachkeys}}
+{{#if page.title}}
+<title>{{page.title}} - {{config.site_title}}</title>
+{{else}}
+<title>{{config.site_title}}</title>
+{{/if}}
+</head>
+<body><div class="container">
+<header role="banner">
+  <h1>{{config.site_title}}</h1>
+</header>
+<nav id="main" class="row">
+<label for="toggle_nav_main">Show/hide navigation menu</label>
+<input type="checkbox" id="toggle_nav_main">
+<ul>
+  {{#each navigation}}<li><a href="{{../config.base_address}}{{url}}" {{#if title}}title="{{.}}"{{/if}}>{{name}}</a></li>{{/each}}
+</ul>
+</nav>
+{{{content}}}
+<footer role="contentinfo">
+</footer>
+<script src="https://apis.google.com/js/plusone.js"></script>
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-1689113-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+{{> logged_in}}
+</div>
+<script src="{{config.assets_base_address}}/js/default.js"></script>
+</body>
+</html>

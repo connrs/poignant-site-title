@@ -1,0 +1,23 @@
+<main role="main" class="row">
+<div class="columns nine">
+  {{> flash_message_alert}}
+  <h1>{{page.title}}</h2>
+  <p>Choose whether to publish or decline the comment below.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+    <input type="hidden" name="comment_id" value="{{{attrSafe comment.comment_id}}}">
+    <div class="full">
+      <label for="comment_content">Content:</label>
+      <textarea rows="6" id="comment_content" name="content">{{comment.content}}</textarea>
+    </div>
+    <div class="buttons">
+      <button role="button" type="submit" name="comment_status_type_id" value="2">Publish</button>
+      <button role="button" type="submit" name="comment_status_type_id" value="3">Decline</button>
+      <a role="button" href="{{config.admin_base_address}}/comments">Exit</a>
+    </div>
+  </form>
+</div>
+<div class="columns three">
+  {{> admin_sidebar}}
+</div>
+</main>

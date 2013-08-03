@@ -1,0 +1,52 @@
+<main role="main" class="row">
+<div class="columns nine">
+  {{> flash_message_alert}}
+  <h1 class="">Tags</h2>
+  <p>To edit a tag, use the filters below and press the 'Edit' beside your chosen tag.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+    <h2>Filters</h2>
+    <div class="half">
+      <label for="tags_name">Name:</label>
+      <input type="text" name="name" id="tags_name"{{#if filters.name}} value="{{attrSafe filters.name}}"{{/if}}>
+    </div>
+    <div class="buttons">
+      <input type="submit" value="Filter">
+      <input type="submit" name="clear" value="Clear">
+    </div>
+  </form>
+  {{#if tags}}
+  <form method="post" action="{{config.admin_base_address}}/tags/delete">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+    <table>
+      <thead>
+        <tr>
+          <th class="fit_width"></th>
+          <th>Name</th>
+          <th class="fit_width hidden-lowwidth">Post count</th>
+          <th class="fit_width">Edit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each tags}}
+        <tr>
+          <td>{{#eq post_count 0}}<input type="checkbox" name="tag_id[]" id="tag_id_{{tag_id}}" value="{{tag_id}}">{{/eq}}</td>
+          <td><label for="tag_id_{{tag_id}}">{{name}}</label></td>
+          <td class="hidden-lowwidth">{{post_count}}</td>
+          <td><a href="{{../../config.admin_base_address}}/tags/edit/{{tag_id}}" role="button">Edit</a></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <div class="buttons">
+      <input type="submit" value="Delete selected">
+    </div>
+  </form>
+  {{else}}
+  <p>There are no tags</p>
+  {{/if}}
+</div>
+<div class="columns three">
+  {{> admin_sidebar}}
+</div>
+</main>

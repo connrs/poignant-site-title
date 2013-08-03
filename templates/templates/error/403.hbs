@@ -1,0 +1,12 @@
+<main role="main" class="row">
+  <div class="columns nine">
+    <h1>Forbidden</h1>
+    <p>You just don't have permission to perform this action.</p>
+    {{#if errorString}}
+      {{markdown errorString}}
+    {{/if}}
+  </div>
+  <div class="columns three">
+    {{> sidebar}}
+  </div>
+</main>

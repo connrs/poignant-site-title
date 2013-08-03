@@ -1,0 +1,12 @@
+<main role="main" class="row">
+  <div class="columns nine">
+    <h1>Bad request</h1>
+    <p>Some of the data sent in this request was incorrect. Please try again.</p>
+    {{#if errorString}}
+      {{markdown errorString}}
+    {{/if}}
+  </div>
+  <div class="columns three">
+    {{> sidebar}}
+  </div>
+</main>

@@ -1,0 +1,23 @@
+<main role="main" class="row">
+<div class="columns nine">
+  {{> flash_message_alert}}
+  <h1>Latest writing</h1>
+  {{#each posts}}
+  <article class="post card h-entry">
+  <h1 class="post_title card_title p-name"><a href="{{../config.base_address}}/posts/{{slug}}" class="u-url">{{title}}</a></h1>
+  <p class="post_info">Written by <a href="{{profile_url provider_user_uid provider_id}}" class="p-author h-card">{{author_name}}</a> on <time class="dt-published" datetime="{{date_format published YYYY-mm-dd HH:mm:ss}}">{{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}</time> <span class="g-plusone" data-size="small" data-annotation="none" data-href="{{config.base_address}}/posts/{{slug}}"></span></p>
+  {{#if summary}}
+  <div class="p-summary">{{markdown summary}}</div>
+  <p><a href="{{../config.base_address}}/posts/{{slug}}">Read more…</a>
+  {{^}}
+  <div class="e-content">{{#markdown_block}}
+  {{{enhance_hashtags content tags}}}
+  {{/markdown_block}}</div>
+  {{/if}}
+  </article>
+  {{/each}}
+</div>
+<div class="columns three">
+  {{> sidebar}}
+</div>
+</main>

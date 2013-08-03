@@ -1,0 +1,12 @@
+<main role="main" class="row">
+  <div class="columns nine">
+  {{> flash_message_alert}}
+  <h1 class="">Archives</h2>
+    {{#blog_archive posts}}
+      <a href="{{../config.base_address}}/posts/{{slug}}">{{title}}</a>
+    {{/blog_archive}}
+  </div>
+  <div class="columns three">
+    {{> sidebar}}
+  </div>
+</main>
