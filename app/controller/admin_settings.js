@@ -29,6 +29,11 @@ AdminSettingsController.prototype.setConfig = function (config) {
   this._config = config;
 };
 
+AdminSettingsController.prototype.beforeAction = function (callback, req, res) {
+  req.view.layout = 'admin';
+  callback(req, res);
+};
+
 AdminSettingsController.prototype.index = function (req, res) {
   if (!req.current_user || !req.current_user.role_id) {
     res.redirect('/', 302);

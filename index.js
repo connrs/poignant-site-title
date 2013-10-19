@@ -15,8 +15,10 @@ initApp(function (err, app) {
   app.router.get('/posts/:slug', app.controller.blog.view);
   app.router.head('/posts/:slug', app.controller.blog.view);
   app.router.post('/posts/:slug', app.controller.blog.newCommentPost);
-  app.router.get('/posts', app.controller.blog.index);
-  app.router.head('/posts', app.controller.blog.index);
+  app.router.get('/archives', app.controller.blog.index);
+  app.router.head('/archives', app.controller.blog.index);
+  app.router.get('/archives/:page', app.controller.blog.index);
+  app.router.head('/archives/:page', app.controller.blog.index);
   app.router.get('/tags', app.controller.blog.tags);
   app.router.head('/tags', app.controller.blog.tags);
   app.router.get('/tags/:name', app.controller.blog.tag);
@@ -26,19 +28,17 @@ initApp(function (err, app) {
   app.router.get('/account/new', app.controller.account.new);
   app.router.head('/account/new', app.controller.account.new);
   app.router.post('/account/new', app.controller.account.postNew);
-  app.router.all('/auth', app.controller.auth.index);
-  app.router.get('/auth/with_google', app.controller.auth.withGoogle);
-  app.router.head('/auth/with_google', app.controller.auth.withGoogle);
+  //app.router.all('/auth', app.controller.auth.index);
+  app.router.get('/auth/with_:idp', app.controller.auth.authWith);
+  app.router.head('/auth/with_:idp', app.controller.auth.authWith);
   app.router.get('/auth/google(\\?.*)?', app.controller.auth.google);
   app.router.head('/auth/google(\\?.*)?', app.controller.auth.google);
-  app.router.get('/auth/with_github', app.controller.auth.withGithub);
-  app.router.head('/auth/with_github', app.controller.auth.withGithub);
   app.router.all('/auth/github(\\?.*)?', app.controller.auth.github);
   app.router.head('/auth/github(\\?.*)?', app.controller.auth.github);
-  app.router.get('/auth/with_facebook', app.controller.auth.withFacebook);
-  app.router.head('/auth/with_facebook', app.controller.auth.withFacebook);
   app.router.all('/auth/facebook(\\?.*)?', app.controller.auth.facebook);
   app.router.head('/auth/facebook(\\?.*)?', app.controller.auth.facebook);
+  app.router.all('/auth/persona(\\?.*)?', app.controller.auth.persona);
+  app.router.head('/auth/persona(\\?.*)?', app.controller.auth.persona);
   app.router.get('/auth/logout', app.controller.auth.logout);
   app.router.get('/posts.rss', app.controller.blog_rss.posts);
   app.router.head('/posts.rss', app.controller.blog_rss.posts);
@@ -64,6 +64,8 @@ initApp(function (err, app) {
   app.router.get('/admin/comments/approve/:comment_id', app.controller.admin_comment.approve);
   app.router.head('/admin/comments/approve/:comment_id', app.controller.admin_comment.approve);
   app.router.post('/admin/comments/approve/:comment_id', app.controller.admin_comment.approvePost);
+  app.router.post('/admin/comments/delete', app.controller.admin_comment.delete);
+  app.router.post('/admin/comments/confirm_delete', app.controller.admin_comment.confirmDelete);
   app.router.all('/admin/tags', app.controller.admin_tag.index);
   app.router.head('/admin/tags', app.controller.admin_tag.index);
   app.router.get('/admin/tags/new', app.controller.admin_tag.new);
@@ -82,6 +84,7 @@ initApp(function (err, app) {
   app.router.get('/admin/settings/general', app.controller.admin_settings.general);
   app.router.head('/admin/settings/general', app.controller.admin_settings.general);
   app.router.post('/admin/settings/general', app.controller.admin_settings.generalPost);
+  app.router.post('/api/1.0/webmention', app.controller.api_1_0.webmention.index);
   app.router.handleError(404, app.controller.error.notFound);
   app.router.handleError(500, app.controller.error.internalServerError);
   app.router.handleError(400, app.controller.error.badRequest);
@@ -90,13 +93,29 @@ initApp(function (err, app) {
   http.createServer(app.router.requestListener()).listen(8106);
 
   net.createServer(function (socket) {
-    repl.start({
+    var r = repl.start({
       prompt: '> ',
       useColors: true,
       input: socket,
       output: socket
-    }).on('exit', function () {
+    });
+
+    r.on('exit', function () {
       socket.end();
-    }).context.app = app;
+    });
+    r.on('error', function (err) {
+      console.log(err);
+    });
+    socket.on('error', console.error.bind(console));
+    r.context.app = app;
   }).listen(5001);
+
+  net.createServer(function (socket) {
+    socket.on('data', function (data) {
+      app.events.emit(data.toString().trim());
+    });
+    socket.on('error', function (err) {
+      console.log(err);
+    });
+  }).listen(5003);
 });

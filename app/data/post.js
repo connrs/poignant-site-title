@@ -7,91 +7,29 @@ PostData.prototype.setClient = function (client) {
 };
 
 PostData.prototype.find = function (filters, callback) {
-  var query = [];
-  var p = 0;
-  var params = [];
+  if (filters.page !== undefined && filters.limit !== undefined) {
+    this._count(filters, function (err, count) {
+      if (err) {
+        callback(err);
+        return;
+      }
 
-  query.push('SELECT p.post_id, pst.post_status_type_id, p.title, p.summary, p.content, p.published, p.inserted, p.updated, p.slug,');
-  query.push('pst.name post_status,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_edit,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_delete,');
-  query.push('COALESCE(EXTRACT(EPOCH FROM p.updated),EXTRACT(EPOCH FROM p.published)) last_modified,');
-  query.push('EXTRACT(YEAR FROM p.published) published_year,');
-  query.push('prov.provider_id, pu.uid provider_user_uid,');
-  query.push('u.name author_name');
-  query.push('FROM post p');
-  query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL');
+      this._find(filters, function (err, posts) {
+        if (err) {
+          callback(err);
+          return;
+        }
 
-  if (+filters.post_status_type_id > 0) {
-    query.push('AND ps.post_status_type_id = $' + ++p);
-    params.push(+filters.post_status_type_id);
+        callback(null, {
+          count: count,
+          posts: posts
+        });
+      }.bind(this));
+    }.bind(this));
   }
-
-  query.push('LEFT JOIN (');
-    query.push('SELECT p.parent_post_id, p.post_id');
-    query.push('FROM post p');
-    query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 5');
-    query.push('WHERE p.parent_post_id IS NOT NULL AND p.deleted IS NULL');
-  query.push(') cp ON cp.parent_post_id = p.post_id');
-  query.push('LEFT JOIN post_status_type pst ON pst.post_status_type_id = ps.post_status_type_id');
-  query.push('LEFT JOIN "user" u ON u.user_id = p.inserted_by');
-  query.push('LEFT JOIN provider_user pu ON pu.user_id = u.user_id AND pu.deleted IS NULL');
-  query.push('LEFT JOIN provider prov ON prov.provider_id = pu.provider_id AND prov.deleted IS NULL');
-  query.push('WHERE p.deleted IS NULL');
-
-  if (filters.title) {
-    query.push('AND p.title LIKE $' + ++p );
-    params.push('%' + filters.title + '%');
+  else {
+    this._find(filters, callback);
   }
-
-  query.push('ORDER BY p.inserted DESC');
-
-  this._client.query(query.join('\n'), params, function (err, results) {
-    if (err) {
-      callback(err);
-      return;
-    }
-
-    callback(null, results.rows);
-  });
-};
-
-PostData.prototype.getLatest = function (limit, callback) {
-  var query = [];
-  var params = [];
-  query.push('SELECT p.post_id, pst.post_status_type_id, p.title, p.summary, p.content, p.published, p.inserted, p.updated, p.slug,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_edit,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_delete,');
-  query.push('COALESCE(EXTRACT(EPOCH FROM p.updated),EXTRACT(EPOCH FROM p.published)) last_modified,');
-  query.push('EXTRACT(YEAR FROM p.published) published_year,');
-  query.push('prov.provider_id, pu.uid provider_user_uid,');
-  query.push('u.name author_name');
-  query.push('FROM post p');
-  query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 3');
-  query.push('LEFT JOIN (');
-    query.push('SELECT p.parent_post_id, p.post_id');
-    query.push('FROM post p');
-    query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 5');
-    query.push('WHERE p.parent_post_id IS NOT NULL AND p.deleted IS NULL');
-  query.push(') cp ON cp.parent_post_id = p.post_id');
-  query.push('LEFT JOIN post_status_type pst ON pst.post_status_type_id = ps.post_status_type_id');
-  query.push('LEFT JOIN "user" u ON u.user_id = p.inserted_by');
-  query.push('LEFT JOIN provider_user pu ON pu.user_id = u.user_id AND pu.deleted IS NULL');
-  query.push('LEFT JOIN provider prov ON prov.provider_id = pu.provider_id AND prov.deleted IS NULL');
-  query.push('WHERE p.deleted IS NULL');
-  query.push('ORDER BY p.published DESC');
-  if (limit) {
-    query.push('LIMIT $1');
-    params.push(limit);
-  }
-  this._client.query(query.join('\n'), params, function (err, results) {
-    if (err) {
-      callback(err);
-      return;
-    }
-
-    callback(null, results.rows);
-  });
 };
 
 PostData.prototype.getUnapproved = function (callback) {
@@ -104,7 +42,7 @@ PostData.prototype.getUnapproved = function (callback) {
   query.push('COALESCE(EXTRACT(EPOCH FROM p.updated),EXTRACT(EPOCH FROM p.published)) last_modified,');
   query.push('EXTRACT(YEAR FROM p.published) published_year,');
   query.push('prov.provider_id, pu.uid provider_user_uid,');
-  query.push('u.name author_name');
+  query.push('u.name author_name, u.url author_url');
   query.push('FROM post p');
   query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id IN(2,5)');
   query.push('LEFT JOIN (');
@@ -128,40 +66,6 @@ PostData.prototype.getUnapproved = function (callback) {
     callback(null, results.rows);
   });
 };
-
-PostData.prototype.getBySlug = function (slug, callback) {
-  var query = [];
-  var params = [];
-  query.push('SELECT p.post_id, pst.post_status_type_id, p.title, p.summary, p.content, p.published, p.inserted, p.updated, p.slug,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_edit,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_delete,');
-  query.push('prov.provider_id, pu.uid provider_user_uid,');
-  query.push('u.name author_name');
-  query.push('FROM post p');
-  query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 3');
-  query.push('LEFT JOIN (');
-    query.push('SELECT p.parent_post_id, p.post_id');
-    query.push('FROM post p');
-    query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 5');
-    query.push('WHERE p.parent_post_id IS NOT NULL AND p.deleted IS NULL');
-  query.push(') cp ON cp.parent_post_id = p.post_id');
-  query.push('LEFT JOIN post_status_type pst ON pst.post_status_type_id = ps.post_status_type_id');
-  query.push('LEFT JOIN "user" u ON u.user_id = p.inserted_by');
-  query.push('LEFT JOIN provider_user pu ON pu.user_id = u.user_id AND pu.deleted IS NULL');
-  query.push('LEFT JOIN provider prov ON prov.provider_id = pu.provider_id AND prov.deleted IS NULL');
-  query.push('WHERE p.deleted IS NULL');
-  query.push('AND p.slug = $1')
-  query.push('ORDER BY p.inserted DESC');
-  params.push(slug);
-  this._client.query(query.join('\n'), params, function (err, results) {
-    if (err) {
-      callback(err);
-      return;
-    }
-
-    callback(null, results.rows[0]);
-  });
-}
 
 PostData.prototype.getTagByName = function (name, callback) {
   var query = [], params = [], p = 0;
@@ -191,77 +95,13 @@ PostData.prototype.getTagByName = function (name, callback) {
   });
 };
 
-PostData.prototype.getPostsByTagId = function (data, callback) {
-  var query = [], params = [], p = 0;
-
-  query.push('SELECT p.post_id, p.parent_post_id, pst.post_status_type_id, p.title, p.summary, p.content, p.published, p.inserted, p.inserted_by, p.updated, p.updated_by, p.slug,');
-  query.push('prov.provider_id, pu.uid provider_user_uid,');
-  query.push('u.name author_name');
-  query.push('FROM tag t');
-  query.push('INNER JOIN post_tag pt ON pt.tag_id = t.tag_id AND pt.deleted IS NULL');
-  query.push('INNER JOIN post p ON p.post_id = pt.post_id AND p.deleted IS NULL');
-  query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 3');
-  query.push('LEFT JOIN post_status_type pst ON pst.post_status_type_id = ps.post_status_type_id');
-  query.push('LEFT JOIN "user" u ON u.user_id = p.inserted_by');
-  query.push('LEFT JOIN provider_user pu ON pu.user_id = u.user_id AND pu.deleted IS NULL');
-  query.push('LEFT JOIN provider prov ON prov.provider_id = pu.provider_id AND prov.deleted IS NULL');
-  query.push('WHERE t.deleted IS NULL');
-  query.push('AND t.tag_id = $1')
-  query.push('ORDER BY p.inserted DESC');
-  query.push('LIMIT $2 OFFSET $3')
-  params.push(data.tag_id, data.limit, data.start);
-
-  this._client.query(query.join('\n'), params, function (err, result) {
-    if (err) {
-      callback(err);
-    }
-    else {
-      callback(null, result.rows);
-    }
-  });
-};
-
-PostData.prototype.findById = function (post_id, callback) {
-  var query = [];
-  var params = [];
-  query.push('SELECT p.post_id, p.parent_post_id, pst.post_status_type_id, p.title, p.summary, p.content, p.published, p.inserted, p.inserted_by, p.updated, p.updated_by, p.slug,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_edit,');
-  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_delete,');
-  query.push('prov.provider_id, pu.uid provider_user_uid,');
-  query.push('u.name author_name');
-  query.push('FROM post p');
-  query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL');
-  query.push('LEFT JOIN (');
-    query.push('SELECT p.parent_post_id, p.post_id');
-    query.push('FROM post p');
-    query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 5');
-    query.push('WHERE p.parent_post_id IS NOT NULL AND p.deleted IS NULL');
-  query.push(') cp ON cp.parent_post_id = p.post_id');
-  query.push('LEFT JOIN post_status_type pst ON pst.post_status_type_id = ps.post_status_type_id');
-  query.push('LEFT JOIN "user" u ON u.user_id = p.inserted_by');
-  query.push('LEFT JOIN provider_user pu ON pu.user_id = u.user_id AND pu.deleted IS NULL');
-  query.push('LEFT JOIN provider prov ON prov.provider_id = pu.provider_id AND prov.deleted IS NULL');
-  query.push('WHERE p.deleted IS NULL');
-  query.push('AND p.post_id = $1')
-  query.push('ORDER BY p.inserted DESC');
-  params.push(post_id);
-  this._client.query(query.join('\n'), params, function (err, results) {
-    if (err) {
-      callback(err);
-      return;
-    }
-
-    callback(null, results.rows[0]);
-  });
-};
-
 PostData.prototype.update = function (data, callback) {
   var query = [];
   var params = [];
   var p = 0;
 
   query.push('INSERT INTO post')
-  query.push('(parent_post_id, title, slug, summary, content, published, inserted, inserted_by)');
+  query.push('(parent_post_id, title, slug, summary, content, location, published, inserted, inserted_by)');
   query.push('SELECT ');
 
   // Original Post ID
@@ -269,8 +109,13 @@ PostData.prototype.update = function (data, callback) {
   params.push(data.post_id);
 
   // Title
-  query.push('$' + ++p + ',');
-  params.push(data.title);
+  if (data.title) {
+    params.push(data.title);
+    query.push('$' + ++p + ',');
+  }
+  else {
+    query.push('NULL,');
+  }
 
   // Slug
   query.push('slug,');
@@ -287,6 +132,23 @@ PostData.prototype.update = function (data, callback) {
   // Content
   query.push('$' + ++p + ',');
   params.push(data.content);
+
+  // Location
+  if (data.hasOwnProperty('location_latitude') && data.hasOwnProperty('location_longitude')) {
+    if (data.location_latitude === 'CLEAR' || data.location_longitude === 'CLEAR') {
+      query.push('NULL,');
+    }
+    else if (data.location_latitude === '' || data.location_longitude === '') {
+      query.push('NULL,');
+    }
+    else {
+      query.push('POINT($' + ++p + ', $' + ++p + '),');
+      params.push(+data.location_latitude, +data.location_longitude);
+    }
+  }
+  else {
+      query.push('location,');
+  }
 
   //Published
   if (data.published_date && data.published_time) {
@@ -335,7 +197,7 @@ PostData.prototype.update = function (data, callback) {
 
 PostData.prototype.save = function (data, callback) {
   if (!data.post_id) {
-    this._generateSlug(data.title, function (err, slug) {
+    this._generateSlug(data.title ? data.title : 'Status', function (err, slug) {
       if (err) {
         callback(err);
         return;
@@ -408,12 +270,17 @@ PostData.prototype._insertPost = function (data, callback) {
     var p = 0;
 
     query.push('INSERT INTO post')
-    query.push('(title, slug, summary, content, published, inserted, inserted_by)');
+    query.push('(title, slug, summary, content, published, location, inserted, inserted_by)');
     query.push('VALUES(');
 
     // Title
-    query.push('$' + ++p + ',');
-    params.push(data.title);
+    if (data.title) {
+      query.push('$' + ++p + ',');
+      params.push(data.title);
+    }
+    else {
+      query.push('NULL,');
+    }
 
     // Slug
     query.push('$' + ++p + ',');
@@ -439,6 +306,22 @@ PostData.prototype._insertPost = function (data, callback) {
     }
     else {
       query.push('NOW(),');
+    }
+
+    if (data.hasOwnProperty('location_latitude') && data.hasOwnProperty('location_longitude')) {
+      if (data.location_latitude === 'CLEAR' || data.location_longitude === 'CLEAR') {
+        query.push('NULL,');
+      }
+      else if (data.location_latitude === '' || data.location_longitude === '') {
+        query.push('NULL,');
+      }
+      else {
+        query.push('POINT($' + ++p + ', $' + ++p + '),');
+        params.push(+data.location_latitude, +data.location_longitude);
+      }
+    }
+    else {
+        query.push('NULL,');
     }
 
     //Inserted
@@ -484,6 +367,19 @@ PostData.prototype._updatePost = function (data, callback) {
       params.push(data.published_date + ' ' + data.published_time);
     }
 
+    if (data.hasOwnProperty('location_latitude') && data.hasOwnProperty('location_longitude')) {
+      if (data.location_latitude === 'CLEAR' || data.location_longitude === 'CLEAR') {
+        query.push('location = NULL,');
+      }
+      else if (data.location_latitude === '' || data.location_longitude === '') {
+        query.push('location = NULL,');
+      }
+      else {
+        query.push('location = POINT($' + ++p + ', $' + ++p + '),');
+        params.push(+data.location_latitude, +data.location_longitude);
+      }
+    }
+
     //Inserted
     query.push('updated = NOW(),');
 
@@ -508,7 +404,7 @@ PostData.prototype.reject = function (data, callback) {
 };
 
 PostData.prototype.approve = function (data, callback) {
-  this.findById(data.post_id, function (err, post) {
+  this.find({post_id: data.post_id}, function (err, post) {
     if (err) {
       callback(err);
       return;
@@ -721,6 +617,145 @@ PostData.prototype.getActivity = function (callback) {
   query.push('ORDER by year_month ASC') ;
 
   this._client.query(query.join('\n'), callback);
+};
+
+PostData.prototype._find = function (filters, callback) {
+  var query = [];
+  var p = 0;
+  var params = [];
+
+  query.push('SELECT p.post_id, p.parent_post_id, pst.post_status_type_id, p.title, p.summary, p.content, p.published, p.inserted, p.updated, p.slug, p.inserted_by,');
+  query.push('pst.name post_status,');
+  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_edit,');
+  query.push('CASE WHEN ps.post_status_type_id IN(1,3) AND cp.post_id IS NULL THEN 1 ELSE NULL END AS can_delete,');
+  query.push('CASE WHEN p.location IS NULL THEN NULL ELSE p.location[0] END AS location_latitude,');
+  query.push('CASE WHEN p.location IS NULL THEN NULL ELSE p.location[1] END AS location_longitude,');
+  query.push('COALESCE(EXTRACT(EPOCH FROM p.updated),EXTRACT(EPOCH FROM p.published)) last_modified,');
+  query.push('EXTRACT(YEAR FROM p.published) published_year,');
+  query.push('prov.provider_id, pu.uid provider_user_uid,');
+  query.push('u.name author_name, u.url author_url');
+  query.push('FROM post p');
+  query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL');
+
+  if (+filters.post_status_type_id > 0) {
+    query.push('AND ps.post_status_type_id = $' + ++p);
+    params.push(+filters.post_status_type_id);
+  }
+
+  query.push('LEFT JOIN (');
+    query.push('SELECT p.parent_post_id, p.post_id');
+    query.push('FROM post p');
+    query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 5');
+    query.push('WHERE p.parent_post_id IS NOT NULL AND p.deleted IS NULL');
+  query.push(') cp ON cp.parent_post_id = p.post_id');
+  query.push('LEFT JOIN post_status_type pst ON pst.post_status_type_id = ps.post_status_type_id');
+  query.push('LEFT JOIN "user" u ON u.user_id = p.inserted_by');
+  query.push('LEFT JOIN provider_user pu ON pu.user_id = u.user_id AND pu.deleted IS NULL');
+  query.push('LEFT JOIN provider prov ON prov.provider_id = pu.provider_id AND prov.deleted IS NULL');
+
+  if (filters.tag_id) {
+    query.push('INNER JOIN post_tag pt ON pt.post_id = p.post_id AND pt.deleted IS NULL AND pt.tag_id = $' + ++p);
+    query.push('INNER JOIN tag t ON t.tag_id = pt.tag_id AND t.deleted IS NULL');
+    params.push(+filters.tag_id);
+  }
+
+  query.push('WHERE p.deleted IS NULL');
+
+  if (filters.title) {
+    query.push('AND p.title LIKE $' + ++p );
+    params.push('%' + filters.title + '%');
+  }
+
+  if (filters.slug) {
+    query.push('AND p.slug = $' + ++p );
+    params.push(filters.slug);
+  }
+
+  if (filters.post_id) {
+    query.push('AND p.post_id = $' + ++p );
+    params.push(+filters.post_id);
+  }
+
+  query.push('ORDER BY p.published DESC');
+
+  if (filters.page !== undefined && filters.limit !== undefined) {
+    query.push('LIMIT $' + ++p + ' OFFSET $' + ++p);
+    params.push(filters.limit, (filters.page - 1) * filters.limit);
+  }
+  else if (filters.limit !== undefined) {
+    query.push('LIMIT $' + ++p);
+    params.push(filters.limit);
+  }
+
+  this._client.query(query.join('\n'), params, function (err, results) {
+    if (err) {
+      callback(err);
+    }
+    else if (filters.post_id || filters.slug) {
+      callback(null, results.rows[0]);
+    }
+    else {
+      callback(null, results.rows);
+    }
+  });
+};
+
+PostData.prototype._count = function (filters, callback) {
+  var query = [];
+  var p = 0;
+  var params = [];
+
+  query.push('SELECT COUNT(p.post_id) count');
+  query.push('FROM post p');
+  query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL');
+
+  if (+filters.post_status_type_id > 0) {
+    query.push('AND ps.post_status_type_id = $' + ++p);
+    params.push(+filters.post_status_type_id);
+  }
+
+  query.push('LEFT JOIN (');
+    query.push('SELECT p.parent_post_id, p.post_id');
+    query.push('FROM post p');
+    query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 5');
+    query.push('WHERE p.parent_post_id IS NOT NULL AND p.deleted IS NULL');
+  query.push(') cp ON cp.parent_post_id = p.post_id');
+  query.push('LEFT JOIN post_status_type pst ON pst.post_status_type_id = ps.post_status_type_id');
+  query.push('LEFT JOIN "user" u ON u.user_id = p.inserted_by');
+  query.push('LEFT JOIN provider_user pu ON pu.user_id = u.user_id AND pu.deleted IS NULL');
+  query.push('LEFT JOIN provider prov ON prov.provider_id = pu.provider_id AND prov.deleted IS NULL');
+
+  if (filters.tag_id) {
+    query.push('INNER JOIN post_tag pt ON pt.post_id = p.post_id AND pt.deleted IS NULL');
+    query.push('INNER JOIN tag t ON t.tag_id = pt.tag_id AND t.deleted IS NULL AND t.tag_id = $' + ++p);
+    params.push(+filters.tag_id);
+  }
+
+  query.push('WHERE p.deleted IS NULL');
+
+  if (filters.title) {
+    query.push('AND p.title LIKE $' + ++p );
+    params.push('%' + filters.title + '%');
+  }
+
+  if (filters.slug) {
+    query.push('AND p.slug = $' + ++p );
+    params.push(filters.slug);
+  }
+
+  if (filters.post_id) {
+    query.push('AND p.post_id = $' + ++p );
+    params.push(+filters.post_id);
+  }
+
+  this._client.query(query.join('\n'), params, function (err, results) {
+    if (err) {
+      callback(err);
+    }
+    else {
+      callback(null, results.rows[0].count);
+    }
+  });
 };
 
 function newPostData(client) {

@@ -45,7 +45,7 @@
           {{#in ../current_user.role_name "su" "editor"}}
           <td>{{#if can_delete}}<input type="checkbox" name="post_id[]" id="post_id_{{post_id}}" value="{{post_id}}">{{/if}}</td>
           {{/in}}
-          <td><label for="post_id_{{post_id}}">{{title}}</label></td>
+          <td><label for="post_id_{{post_id}}">{{#if title}}{{title}}{{^}}Status update by {{author_name}} on {{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}{{/if}}</label></td>
           <td class="hidden-lowwidth">{{date_format published "DD/MM/YYYY"}}</td>
           <td class="hidden-lowwidth">{{post_status}}</td>
           {{#eq can_edit 1}}
@@ -63,6 +63,7 @@
     </div>
     {{/in}}
   </form>
+  {{paginate_form pagination filters}}
   {{else}}
   <p>There are no posts</p>
   {{/if}}

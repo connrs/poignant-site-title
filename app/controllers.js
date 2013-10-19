@@ -10,19 +10,23 @@ var newAdminTagController = require('./controller/admin_tag.js');
 var newErrorController = require('./controller/error');
 var newAdminSettingsController = require('./controller/admin_settings');
 var newAdminCommentsController = require('./controller/admin_comment.js');
+var newApi10WebmentionController = require('./controller/api/1.0/webmention.js');
 
 function initControllers(app) {
     app.controller = {};
     app.controller.error = newErrorController(newHTMLView(app.templates));
     app.controller.account = newAccountController(newHTMLView(app.templates), app.model.User, app.db.user);
-    app.controller.auth = newAuthController(newHTMLView(app.templates), app.providers, app.model.User, app.db.user);
-    app.controller.blog = newBlogController(newHTMLView(app.templates), app.db.post, app.db.tag, app.db.comment);
+    app.controller.auth = newAuthController(newHTMLView(app.templates), app.idp, app.model.User, app.db.user);
+    app.controller.blog = newBlogController(newHTMLView(app.templates), app.db.post, app.db.tag, app.db.comment, app.stomp);
     app.controller.blog_rss = newBlogRSSController(newRSSView(), app.db.post);
     app.controller.admin = newAdminController(newHTMLView(app.templates), app.db.post);
-    app.controller.admin_blog = newAdminBlogController(newHTMLView(app.templates), app.model.Post, app.db.post, app.model.Tag, app.db.tag, app.types);
+    app.controller.admin_blog = newAdminBlogController(newHTMLView(app.templates), app.model.Post, app.db.post, app.model.Tag, app.db.tag, app.types, app.stomp);
     app.controller.admin_tag = newAdminTagController(newHTMLView(app.templates), app.db.tag);
     app.controller.admin_settings = newAdminSettingsController(newHTMLView(app.templates), app.events, app.config);
     app.controller.admin_comment = newAdminCommentsController(newHTMLView(app.templates), app.db.comment, app.types);
+    app.controller.api_1_0 = {
+      webmention: newApi10WebmentionController(newHTMLView(app.templates), app.db.post, app.stomp)
+    };
 }
 
 module.exports = initControllers;

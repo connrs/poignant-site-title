@@ -46,50 +46,29 @@ CommentData.prototype.save = function (data, callback) {
 };
 
 CommentData.prototype.find = function (data, callback) {
-  var query = [];
-  var params = [];
-  var p = 0;
+  if (data.page !== undefined && data.limit !== undefined) {
+    this._count(data, function (err, count) {
+      if (err) {
+        callback(err);
+        return;
+      }
 
-  query.push('SELECT c.comment_id, c.content, c.inserted,');
-  query.push('CASE WHEN cs.comment_status_type_id = 2 THEN 1 ELSE NULL END can_delete,');
-  query.push('u.user_id, u.name user_name,');
-  query.push('cst.name comment_status,');
-  query.push('cs.comment_status_type_id');
-  query.push('FROM comment c');
-  query.push('INNER JOIN comment_status cs ON cs.comment_id = c.comment_id AND cs.deleted IS NULL');
+      this._find(data, function (err, comments) {
+        if (err) {
+          callback(err);
+          return;
+        }
 
-  if (data.comment_status_type_id) {
-    query.push('AND cs.comment_status_type_id = $' + ++p);
-    params.push(data.comment_status_type_id);
+        callback(null, {
+          count: count,
+          comments: comments
+        });
+      }.bind(this));
+    }.bind(this));
   }
-
-  query.push('INNER JOIN comment_status_type cst ON cst.comment_status_type_id = cs.comment_status_type_id');
-
-  if (data.post_id) {
-    query.push('INNER JOIN comment_post cp ON cp.comment_id = c.comment_id AND cp.deleted IS NULL AND cp.post_id = $' + ++p);
-    params.push(data.post_id);
+  else {
+    this._find(data, callback);
   }
-
-  query.push('LEFT JOIN "user" u ON u.user_id = c.inserted_by AND u.deleted IS NULL');
-
-  query.push('WHERE c.deleted IS NULL');
-
-  if (data.comment_id) {
-    query.push('AND c.comment_id = $' + ++p);
-    params.push(data.comment_id);
-  }
-
-  this._client.query(query.join('\n'), params, function (err, result) {
-    if (err) {
-      callback(err);
-    }
-    else if (data.comment_id) {
-      callback(null, result.rows[0]);
-    }
-    else {
-      callback(null, result.rows);
-    }
-  });
 };
 
 CommentData.prototype.findPublished = function (data, callback) {
@@ -141,6 +120,140 @@ CommentData.prototype.decline = function (data, callback) {
       }.bind(this));
     }
   }.bind(this));
+};
+
+CommentData.prototype.delete = function (data, callback) {
+  var query = [];
+  var p = 0;
+  var params = [];
+
+  query.push('UPDATE comment SET');
+
+  // Deleted
+  query.push('deleted = NOW(),');
+
+  // Deleted By
+  query.push('deleted_by = $' + ++p + ',');
+  params.push(data.by);
+
+  // Updated
+  query.push('updated = NOW(),');
+
+  // Updated By
+  query.push('updated_by = $' + ++p);
+  params.push(data.by);
+
+  // Post ID
+  query.push('WHERE deleted IS NULL');
+  query.push('AND comment_id IN (' + data.comment_id.map(function () { return '$' + ++p; }).join(',') + ')');
+  params.push.apply(params, data.comment_id);
+
+  this._client.query(query.join('\n'), params, function (err, result) {
+    if (err) {
+      callback(err);
+      return;
+    }
+
+    callback();
+  });
+};
+
+CommentData.prototype._count = function (data, callback) {
+  var query = [];
+  var params = [];
+  var p = 0;
+
+  query.push('SELECT COUNT(c.comment_id) AS count');
+  query.push('FROM comment c');
+  query.push('INNER JOIN comment_status cs ON cs.comment_id = c.comment_id AND cs.deleted IS NULL');
+
+  if (data.comment_status_type_id) {
+    query.push('AND cs.comment_status_type_id = $' + ++p);
+    params.push(data.comment_status_type_id);
+  }
+
+  query.push('INNER JOIN comment_status_type cst ON cst.comment_status_type_id = cs.comment_status_type_id');
+
+  if (data.post_id) {
+    query.push('INNER JOIN comment_post cp ON cp.comment_id = c.comment_id AND cp.deleted IS NULL AND cp.post_id = $' + ++p);
+    params.push(data.post_id);
+  }
+
+  query.push('LEFT JOIN "user" u ON u.user_id = c.inserted_by AND u.deleted IS NULL');
+
+  query.push('WHERE c.deleted IS NULL');
+
+  if (data.comment_id) {
+    query.push('AND c.comment_id = $' + ++p);
+    params.push(data.comment_id);
+  }
+
+  this._client.query(query.join('\n'), params, function (err, result) {
+    if (err) {
+      callback(err);
+    }
+    else {
+      callback(null, result.rows[0].count);
+    }
+  });
+};
+
+CommentData.prototype._find = function (data, callback) {
+  var query = [];
+  var params = [];
+  var p = 0;
+
+  query.push('SELECT c.comment_id, c.content, c.inserted,');
+  query.push('CASE WHEN cs.comment_status_type_id = 2 THEN 1 ELSE NULL END can_delete,');
+  query.push('u.user_id, u.name user_name,');
+  query.push('cst.name comment_status,');
+  query.push('cs.comment_status_type_id');
+  query.push('FROM comment c');
+  query.push('INNER JOIN comment_status cs ON cs.comment_id = c.comment_id AND cs.deleted IS NULL');
+
+  if (data.comment_status_type_id) {
+    query.push('AND cs.comment_status_type_id = $' + ++p);
+    params.push(data.comment_status_type_id);
+  }
+
+  query.push('INNER JOIN comment_status_type cst ON cst.comment_status_type_id = cs.comment_status_type_id');
+
+  if (data.post_id) {
+    query.push('INNER JOIN comment_post cp ON cp.comment_id = c.comment_id AND cp.deleted IS NULL AND cp.post_id = $' + ++p);
+    params.push(data.post_id);
+  }
+
+  query.push('LEFT JOIN "user" u ON u.user_id = c.inserted_by AND u.deleted IS NULL');
+
+  query.push('WHERE c.deleted IS NULL');
+
+  if (data.comment_id) {
+    query.push('AND c.comment_id = $' + ++p);
+    params.push(data.comment_id);
+  }
+
+  query.push('ORDER BY c.inserted ASC');
+
+  if (data.page !== undefined && data.limit !== undefined) {
+    query.push('LIMIT $' + ++p + ' OFFSET $' + ++p);
+    params.push(+data.limit, (data.page - 1) * data.limit);
+  }
+  else if (data.limit !== undefined) {
+    query.push('LIMIT $' + ++p);
+    params.push(data.limit);
+  }
+
+  this._client.query(query.join('\n'), params, function (err, result) {
+    if (err) {
+      callback(err);
+    }
+    else if (data.comment_id) {
+      callback(null, result.rows[0]);
+    }
+    else {
+      callback(null, result.rows);
+    }
+  });
 };
 
 CommentData.prototype._insertComment = function (data, callback) {

@@ -1,4 +1,5 @@
 var Controller = require('./core');
+var Post = require('../../lib/models/post.js');
 var marked = require('marked');
 var boundMethods = [
   'posts'
@@ -10,13 +11,13 @@ function BlogController() {
 
 BlogController.prototype = Object.create(Controller.prototype, { constructor: BlogController });
 
-BlogController.prototype.setPosts = function (posts) {
-  this._posts = posts;
+BlogController.prototype.setPostData = function (postData) {
+  this._postData = postData;
 };
 
 BlogController.prototype.posts = function (req, res) {
   res.setHeader('Cache-control', 'no-cache,max-age=0');
-  this._posts.getLatest(10, function (err, posts) {
+  this._newPost().getLatest(10, function (err, posts) {
     var maxLastMod;
 
     if (err) {
@@ -38,10 +39,16 @@ BlogController.prototype.posts = function (req, res) {
   }.bind(this));
 }
 
-function newBlogController(view, posts) {
+BlogController.prototype._newPost = function () {
+  var post = new Post();
+  post.setPostData(this._postData);
+  return post;
+};
+
+function newBlogController(view, postData) {
   var controller = new BlogController(boundMethods);
   controller.setView(view);
-  controller.setPosts(posts);
+  controller.setPostData(postData);
   return controller;
 }
 

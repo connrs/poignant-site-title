@@ -8,6 +8,7 @@ HTMLView.prototype.setTemplates = function (templates) {
 
 HTMLView.prototype.render = function (req, res) {
     var data = xtend({}, req.view.context);
+    var layout = req.view.layout || 'default';
     var content;
 
     if (req.providerUser) {
@@ -30,14 +31,14 @@ HTMLView.prototype.render = function (req, res) {
 
     if (!data.flash_message) {
       if (req.method !== 'HEAD') {
-        res.write(this._templates['layout_default'](data));
+        res.write(this._templates['layout_' + layout](data));
       }
       res.end();
     }
     else {
       req.session.set('flash_message', null, function (err) {
         if (req.method !== 'HEAD') {
-          res.write(this._templates['layout_default'](data));
+          res.write(this._templates['layout_' + layout](data));
         }
         res.end();
       }.bind(this));

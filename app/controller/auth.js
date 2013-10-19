@@ -1,12 +1,12 @@
 var Controller = require('./core');
+var User = require('../../lib/models/user.js');
 var boundMethods = [
   'index',
-  'withGoogle',
+  'authWith',
   'google',
-  'withGithub',
   'github',
-  'withFacebook',
-  'facebook'
+  'facebook',
+  'persona'
 ];
 
 function AuthController() {
@@ -15,8 +15,8 @@ function AuthController() {
 
 AuthController.prototype = Object.create(Controller.prototype, { constructor: AuthController });
 
-AuthController.prototype.setProviders = function (providers) {
-  this._providers = providers;
+AuthController.prototype.setIDP = function (idp) {
+  this._idp = idp;
 }
 
 AuthController.prototype.setUser = function (User) {
@@ -33,128 +33,171 @@ AuthController.prototype.index = function (req, res) {
   this._view.render(req, res);
 };
 
-AuthController.prototype.withGoogle = function (req, res) {
-  res.redirect(this._providers.google.getAuthorizeUrl({state: req.session.uid()}), 302);
-};
+AuthController.prototype.authWith = function (req, res) {
+  var params = {
+    state: req.session.uid()
+  };
 
-AuthController.prototype.withGithub = function (req, res) {
-  res.redirect(this._providers.github.getAuthorizeUrl({state: req.session.uid()}), 302);
-};
+  if (req.params.idp.toLowerCase() === 'google') {
+    params.scope = [ 'https://www.googleapis.com/auth/plus.login' ];
+    params.access_type = 'offline';
+  }
 
-AuthController.prototype.withFacebook = function (req, res) {
-  res.redirect(this._providers.facebook.getAuthorizeUrl({state: req.session.uid()}), 302);
+  if (!req.params.idp || !this._idp[req.params.idp.toLowerCase()]) {
+    res.render500();
+  }
+  else {
+    res.redirect(this._idp[req.params.idp.toLowerCase()]().authUrl(params), 302);
+  }
 };
 
 AuthController.prototype.google = function (req, res) {
   if (req.data.state !== req.session.uid()) {
     res.render400();
-    return;
   }
-
-  this._providers.google.getProviderUser(req.data.code, function (err, providerUser) {
-    if (err) {
-      res.render500(err);
-      return;
-    }
-    else if (!providerUser.userData) {
-      req.session.set('account_new', { payload: providerUser.payload, provider_id: 1 }, function (err) {
-        res.redirect('/account/new', 302);
-      });
-    }
-    else {
-      req.session.set('current_user_id', providerUser.userData.user_id, function (err) {
-        var user = this._newUser();
-        user.setData({
-          software_version_id: req.config.softwareVersion,
-          user_id: providerUser.userData.user_id,
-          date: new Date()
-        });
-        user.updateLastLogin(function (err) {
-          res.redirect('/', 302);
-        });
-      }.bind(this));
-    }
-  }.bind(this));
+  else {
+    this._idp.google().identity(req.data.code, function (err, identity) {
+      if (err) {
+        res.render500(err);
+      }
+      else {
+        this._newUser().findByIdentity(identity.id, 1, function (err, userData) {
+          console.log(identity);
+          if (err) {
+            res.render500(err);
+          }
+          else if (!userData) {
+            req.session.set('account_new', { identity: identity, provider_id: 1, primary_identity: true }, function (err) {
+              res.redirect('/account/new', 302);
+            });
+          }
+          else {
+            req.session.set('current_user_id', userData.user_id, function (err) {
+              var user = this._newUser();
+              user.setData({
+                software_version_id: req.config.softwareVersion,
+                user_id: userData.user_id,
+                date: new Date()
+              });
+              user.updateLastLogin(function (err) {
+                res.redirect('/', 302);
+              });
+            }.bind(this));
+          }
+        }.bind(this));
+      }
+    }.bind(this));
+  }
 }
 
 AuthController.prototype.github = function (req, res) {
   if (req.data.state !== req.session.uid()) {
     res.render400();
-    return;
   }
-
-  this._providers.github.getProfile(req.data.code, function (err, user) {
-    var user;
-
-    if (err) {
-      res.render500(err);
-      return;
-    }
-
-    this._newUser().findByProviderUid(user.login, function (err, data) {
+  else {
+    this._idp.github().identity(req.data.code, function (err, identity) {
       if (err) {
         res.render500(err);
       }
-      else if (!data) {
-        req.session.set('account_new', { payload: { uid: user.login }, provider_id: 2 }, function (err) {
-          res.redirect('/account/new', 302);
-        });
-      }
       else {
-        req.session.set('current_user_id', data.user_id, function (err) {
-          var user = this._newUser();
-          user.setData({
-            software_version_id: req.config.softwareVersion,
-            user_id: data.user_id,
-            date: new Date()
-          });
-          user.updateLastLogin(function (err) {
-            res.redirect('/', 302);
-          });
+        this._newUser().findByIdentity(identity.id, 2, function (err, userData) {
+          if (err) {
+            res.render500(err);
+          }
+          else if (!userData) {
+            req.session.set('account_new', { identity: identity, provider_id: 2, primary_identity: true }, function (err) {
+              res.redirect('/account/new', 302);
+            });
+          }
+          else {
+            req.session.set('current_user_id', userData.user_id, function (err) {
+              var user = this._newUser();
+              user.setData({
+                software_version_id: req.config.softwareVersion,
+                user_id: userData.user_id,
+                date: new Date()
+              });
+              user.updateLastLogin(function (err) {
+                res.redirect('/', 302);
+              });
+            }.bind(this));
+          }
         }.bind(this));
       }
     }.bind(this));
-  }.bind(this));
+  }
 };
 
 AuthController.prototype.facebook = function (req, res) {
   if (req.data.state !== req.session.uid()) {
     res.render400();
-    return;
   }
-
-  this._providers.facebook.getProfile(req.data.code, function (err, user) {
-    var user;
-
-    if (err) {
-      console.log(err);
-      res.render500(err);
-      return;
-    }
-
-    this._newUser().findByProviderUid(user.id, function (err, data) {
+  else {
+    this._idp.facebook().identity(req.data.code, function (err, identity) {
       if (err) {
         res.render500(err);
       }
-      else if (!data) {
-        req.session.set('account_new', { payload: { uid: user.id }, provider_id: 3 }, function (err) {
-          res.redirect('/account/new', 302);
-        });
-      }
       else {
-        req.session.set('current_user_id', data.user_id, function (err) {
-          var user = this._newUser();
-          user.setData({
-            software_version_id: req.config.softwareVersion,
-            user_id: data.user_id,
-            date: new Date()
-          });
-          user.updateLastLogin(function (err) {
-            res.redirect('/', 302);
-          });
+        this._newUser().findByIdentity(identity.id, 3, function (err, userData) {
+          if (err) {
+            res.render500(err);
+          }
+          else if (!userData) {
+            req.session.set('account_new', { identity: identity, provider_id: 3, primary_identity: true }, function (err) {
+              res.redirect('/account/new', 302);
+            });
+          }
+          else {
+            req.session.set('current_user_id', userData.user_id, function (err) {
+              var user = this._newUser();
+              user.setData({
+                software_version_id: req.config.softwareVersion,
+                user_id: userData.user_id,
+                date: new Date()
+              });
+              user.updateLastLogin(function (err) {
+                res.redirect('/', 302);
+              });
+            }.bind(this));
+          }
         }.bind(this));
       }
     }.bind(this));
+  }
+};
+
+AuthController.prototype.persona = function (req, res) {
+  this._idp.persona().identity(req.data.assertion, function (err, identity) {
+    if (err) {
+      res.render500(err);
+    }
+    else {
+      this._newUser().findByIdentity(identity.id, 4, function (err, userData) {
+        if (err) {
+          res.render500(err);
+        }
+        else if (!userData) {
+          req.session.set('account_new', { identity: identity, provider_id: 4, primary_identity: true }, function (err) {
+            res.setHeader('content-type', 'application/json; charset=UTF-8');
+            res.end(JSON.stringify('/account/new'));
+          });
+        }
+        else {
+          req.session.set('current_user_id', userData.user_id, function (err) {
+            var user = this._newUser();
+            user.setData({
+              software_version_id: req.config.softwareVersion,
+              user_id: userData.user_id,
+              date: new Date()
+            });
+            user.updateLastLogin(function (err) {
+              res.setHeader('content-type', 'application/json; charset=UTF-8');
+              res.end(JSON.stringify('/'));
+            });
+          }.bind(this));
+        }
+      }.bind(this));
+    }
   }.bind(this));
 };
 
@@ -165,15 +208,15 @@ AuthController.prototype.logout = function (req, res) {
 };
 
 AuthController.prototype._newUser = function () {
-  var user = new this._User();
+  var user = new User();
   user.setUserData(this._userData);
   return user;
 };
 
-function newAuthController(view, providers, User, userData) {
+function newAuthController(view, idp, User, userData) {
   var controller = new AuthController(boundMethods);
   controller.setView(view);
-  controller.setProviders(providers);
+  controller.setIDP(idp);
   controller.setUser(User);
   controller.setUserData(userData);
   return controller;

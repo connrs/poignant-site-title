@@ -23,7 +23,10 @@
     "time": "~0.9.2",
     "uslug": "~1.0.3",
     "string": "~1.4.0",
-    "find-hashtags": "~0.1.0"
+    "find-hashtags": "~0.1.0",
+    "stomp-client": "~0.4.0",
+    "idp-persona": "0.0.1",
+    "sessions-pg-store": "0.0.1"
   },
   "devDependencies": {
     "grunt": "~0.4.1"

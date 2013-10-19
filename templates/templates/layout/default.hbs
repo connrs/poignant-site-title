@@ -7,10 +7,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="initial-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
-<link rel="stylesheet" href="{{{config.assets_base_address}}}/css/default.css">
+{{> head_assets}}
 <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Asap:400,700,700italic">
+<!--[if lte IE 8]>
+<link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.6.4/leaflet.ie.css" />
+<![endif]-->
 <link rel="feed alternate" type="application/rss+xml" href="{{{config.base_address}}}/posts.rss" title="Blog">
 <link rel="icon" type="image/x-icon" href="{{{config.assets_base_address}}}/img/favicon.png">
+<link rel="icon" type="icon" href="{{{config.assets_base_address}}}/img/apple-touch-icon.png">
+<link href='{{{config.assets_base_address}}}/img/apple-touch-icon-114.png' rel='apple-touch-icon-precomposed' />
 {{#eachkeys config.linkrel}}
 <link rel="{{this.key}}" href="{{this.value}}">
 {{/eachkeys}}
@@ -34,6 +39,8 @@
 {{{content}}}
 <footer role="contentinfo">
 </footer>
+{{> logged_in}}
+</div>
 <script src="https://apis.google.com/js/plusone.js"></script>
 <script type="text/javascript">
   var _gaq = _gaq || [];
@@ -45,8 +52,12 @@
     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
   })();
 </script>
-{{> logged_in}}
-</div>
-<script src="{{config.assets_base_address}}/js/default.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="https://login.persona.org/include.js"></script>
+{{#each scripts}}<script src="{{this}}"></script>{{/each}}
+<script>
+var currentUser = {{#if current_user}}'{{current_user.email}}'{{^}}null{{/if}};
+</script>
+{{> foot_assets}}
 </body>
 </html>

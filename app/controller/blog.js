@@ -6,6 +6,7 @@ var S = require('string');
 var boundMethods = [
   'home', 'view', 'index', 'tag', 'tags', 'newCommentPost'
 ];
+var commentPath = 'comment';
 
 function BlogController() {
   Controller.apply(this, arguments);
@@ -25,6 +26,10 @@ BlogController.prototype.setCommentData = function (commentData) {
   this._commentData = commentData;
 };
 
+BlogController.prototype.setStompClient = function (client) {
+  this._stompClient = client;
+};
+
 BlogController.prototype.home = function (req, res) {
   res.setHeader('Cache-control', 'no-cache,max-age=0');
   this._newPost().getLatest(3, function (err, posts) {
@@ -40,14 +45,31 @@ BlogController.prototype.home = function (req, res) {
 }
 
 BlogController.prototype.index = function (req, res) {
+  var limit = 20;
+  var page = req.params.page ? req.params.page : 1;
+  var filters = {
+    post_status_type_id: 3,
+    limit: limit,
+    page: page
+  };
+
   res.setHeader('Cache-control', 'no-cache,max-age=0');
-  this._newPost().getLatest(null, function (err, posts) {
+  this._newPost().find(filters, function (err, results) {
     if (err) {
       res.render500(err);
     }
+    else if (Math.ceil(results.count / limit) < page) {
+      res.render404();
+    }
     else {
       req.view.template = 'blog_index';
-      req.view.context.posts = posts;
+      req.view.context.posts = results.posts;
+      req.view.context.pagination = {
+        url: req.config.base_address + '/archives',
+        perPage: limit,
+        page: page,
+        pages: Math.ceil(results.count / limit)
+      };
       req.view.context.page = {
         title: 'Archives'
       };
@@ -70,12 +92,13 @@ BlogController.prototype.tag = function (req, res) {
       res.render404();
     }
     else {
-      post.setData({
+      var data = {
+        post_status_type_id: 3,
         tag_id: tag.tag_id,
         start: start,
         limit: limit
-      });
-      post.getPostsByTagId(function (err, posts) {
+      };
+      post.find(data, function (err, posts) {
         if (err) {
           res.render500(err);
         }
@@ -176,11 +199,12 @@ BlogController.prototype.newCommentPost = function (req, res) {
       }
       else {
         req.data.content = S(req.data.content).stripTags().s;
-        comment.save(function (err, tag_id) {
+        comment.save(function (err, comment_id) {
           if (err) {
             res.render500(err);
           }
           else {
+            this._publishCommentNotification(req.data.post_id, comment_id, req.data.by);
             req.session.set('flash_message', 'Your comment has been submitted and will be reviewed.', function (err) {
               this.view(req, res);
             }.bind(this));
@@ -189,6 +213,16 @@ BlogController.prototype.newCommentPost = function (req, res) {
       }
     }.bind(this));
   }
+};
+
+BlogController.prototype._publishCommentNotification = function (post_id, comment_id, by) {
+  this._stompClient.publish('/queue/' + commentPath, JSON.stringify({
+    post_id: post_id,
+    comment_id: comment_id,
+    by: by
+  }), {
+    'content-type': 'application/json'
+  });
 };
 
 BlogController.prototype._newPost = function () {
@@ -209,12 +243,13 @@ BlogController.prototype._newComment = function () {
   return comment;
 };
 
-function newBlogController(view, postData, tagData, commentData) {
+function newBlogController(view, postData, tagData, commentData, stompClient) {
   var controller = new BlogController(boundMethods);
   controller.setView(view);
   controller.setPostData(postData);
   controller.setCommentData(commentData);
   controller.setTagData(tagData);
+  controller.setStompClient(stompClient);
   return controller;
 }
 

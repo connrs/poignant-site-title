@@ -1,5 +1,5 @@
 var Sessions = require('sessions');
-var PostgresqlStore = require('../lib/postgres_session_store');
+var Store = require('sessions-pg-store');
 
 function initSessionHandler(client) {
   var options = {
@@ -8,7 +8,7 @@ function initSessionHandler(client) {
   var storeOptions = {
     client: client
   };
-  var sessionHandler = new Sessions(PostgresqlStore, options, storeOptions);
+  var sessionHandler = new Sessions(Store, options, storeOptions);
   return sessionHandler;
 }
 

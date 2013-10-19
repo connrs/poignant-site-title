@@ -26,6 +26,11 @@ AdminTagController.prototype.setTagData = function (tagData) {
   this._tagData = tagData;
 };
 
+AdminTagController.prototype.beforeAction = function (callback, req, res) {
+  req.view.layout = 'admin';
+  callback(req, res);
+};
+
 AdminTagController.prototype.index = function (req, res) {
   var filters;
   var tag = this._newTag();

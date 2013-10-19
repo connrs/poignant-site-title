@@ -9,8 +9,17 @@
   {{/if}}
   {{#each posts}}
   <article class="post card h-entry">
+  {{#if title}}
   <h1 class="post_title card_title p-name"><a href="{{../config.base_address}}/posts/{{slug}}" class="u-url">{{title}}</a></h1>
-  <p class="post_info">Written by <a href="{{profile_url provider_user_uid provider_id}}" class="p-author h-card">{{author_name}}</a> on <time class="dt-published" datetime="{{date_format published YYYY-mm-dd HH:mm:ss}}">{{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}</time> <span class="g-plusone" data-size="small" data-annotation="none" data-href="{{config.base_address}}/posts/{{slug}}"></span></p>
+  <p class="post_info">Written by <a href="{{profile_url author_url}}" class="p-author h-card">{{author_name}}</a> on <time class="dt-published" datetime="{{date_format published YYYY-mm-dd HH:mm:ss}}">{{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}</time> <span class="g-plusone" data-size="small" data-annotation="none" data-href="{{config.base_address}}/posts/{{slug}}"></span></p>
+  {{/if}}
+  {{#if location_latitude}}
+  <div itemscope itemtype="http://schema.org/Place">
+    <h2>Location: <a href="http://www.openstreetmap.org/?mlat={{location_latitude}}&mlon={{location_longitude}}&zoom=15">{{location_latitude}}, {{location_longitude}}</a></h2>
+    <meta itemprop="latitude" content="{{location_latitude}}">
+    <meta itemprop="longitude" content="{{location_longitude}}">
+  </div>
+  {{/if}}
   {{#if summary}}
   <div class="p-summary">{{{markdown summary}}}</div>
   <p><a href="{{../config.base_address}}/posts/{{slug}}">Read more…</a>
@@ -19,6 +28,9 @@
   {{{enhance_hashtags content tags}}}
   {{/markdown_block}}</div>
   {{/if}}
+  {{#unless title}}
+  <p class="post_info"><a href="{{../config.base_address}}/posts/{{slug}}" class="u-url">Status update</a> by <a href="{{profile_url author_url}}" class="p-author h-card">{{author_name}}</a> on <time class="dt-published" datetime="{{date_format published YYYY-mm-dd HH:mm:ss}}">{{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}</time> <span class="g-plusone" data-size="small" data-annotation="none" data-href="{{config.base_address}}/posts/{{slug}}"></span></p>
+  {{/unless}}
   </article>
   {{/each}}
   {{paginate pagination}}

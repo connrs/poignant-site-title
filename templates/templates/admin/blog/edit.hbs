@@ -7,6 +7,8 @@
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{csrf_token}}">
     <input type="hidden" name="post_id" value="{{post.post_id}}">
+    <input type="hidden" id="posts_point_latitude" name="location_latitude" value="{{post.location_latitude}}">
+    <input type="hidden" id="posts_point_longitude" name="location_longitude" value="{{post.location_longitude}}">
     <div class="full">
       <label for="posts_title">Title:</label>
       <input type="text" name="title" id="posts_title"{{#if post.title}} value="{{post.title}}"{{/if}}>
@@ -18,6 +20,11 @@
     <div class="half">
       <label for="posts_published_time">Published time:</label>
       <input type="time" name="published_time" id="posts_published_time" value="{{date_format post.published "HH:mm"}}">
+    </div>
+    <div class="full">
+      <label>Location options:</label>
+      <input type="button" value="Get location" id="posts_get_location" role="button"{{#if post.location_latitude}} disabled{{/if}}>
+      <input type="button" value="Clear location" id="posts_clear_location" role="button"{{#unless post.location_latitude}} disabled{{/unless}}>
     </div>
     <div class="full">
       <label for="posts_summary">Summary:</label>

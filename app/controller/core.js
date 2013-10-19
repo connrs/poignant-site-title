@@ -9,9 +9,16 @@ Controller.prototype.setView = function (view) {
 };
 
 Controller.prototype._bindToController = function (methods) {
-  var i, length = methods.length;
+  var i, length = methods.length, method;
+
   for (i = 0; i < length; i++) {
-    this[methods[i]] = this[methods[i]].bind(this);
+    method = this[methods[i]].bind(this);
+    if (this.beforeAction) {
+      this[methods[i]] = this.beforeAction.bind(this, method)
+    }
+    else {
+      this[methods[i]] = method;
+    }
   }
 };
 

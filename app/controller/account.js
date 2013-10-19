@@ -23,19 +23,13 @@ AccountController.prototype.new = function (req, res) {
     res.redirect('/', 302);
   }
   else {
-    req.view = {
-      template: 'account_new',
-      context: {
-        errors: req.session.get('account_new_errors')
-      }
-    };
+    req.view.template = 'account_new';
     this._view.render(req, res);
   }
 }
 
 AccountController.prototype.postNew = function (req, res) {
   var user;
-  var sessionData = {};
   var accountNew;
 
   if (!req.session.get('account_new')) {
@@ -44,15 +38,15 @@ AccountController.prototype.postNew = function (req, res) {
   }
   else {
     accountNew = req.session.get('account_new');
-    sessionData.payload = accountNew.payload;
-    sessionData.provider_id = accountNew.provider_id;
     user = new this._User();
     user.setUserData(this._userData);
     user.setData({
       name: req.data.name,
-      email: sessionData.payload.email,
-      provider_id: sessionData.provider_id,
-      uid: sessionData.payload.uid,
+      email: accountNew.identity.email,
+      url: accountNew.identity.url,
+      provider_id: accountNew.provider_id,
+      uid: accountNew.identity.id,
+      primary_identity: true,
       by: 0
     });
     user.validate(function (err, errors) {
@@ -60,8 +54,8 @@ AccountController.prototype.postNew = function (req, res) {
         res.render500(err);
       }
       else if (errors) {
-        req.session.set('account_new_errors', errors);
-        res.redirect('/account/new', 302);
+        req.view.context.errors = req.session.get('account_new_errors');
+        this.new();
       }
       else {
         user.save(function (err, id) {

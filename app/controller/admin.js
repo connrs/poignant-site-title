@@ -14,6 +14,11 @@ AdminController.prototype.setPostData = function (postData) {
   this._postData = postData;
 };
 
+AdminController.prototype.beforeAction = function (callback, req, res) {
+  req.view.layout = 'admin';
+  callback(req, res);
+};
+
 AdminController.prototype.index = function (req, res) {
   if (!req.hasPermission()) {
     res.render403();

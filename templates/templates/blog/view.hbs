@@ -2,15 +2,27 @@
 <div class="columns nine">
   {{> flash_message_alert}}
   {{#with post}}
-  <article class="post card h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <article class="post card h-entry" itemscope itemtype="http://schema.org/BlogPosting" data-post-id="{{post_id}}">
+  {{#if title}}
   <h1 class="post_title card_title p-name" itemprop="name"><a href="{{../config.base_address}}/posts/{{slug}}" class="u-url" itemprop="url">{{title}}</a></h1>
-  <p class="post_info">Written by <a href="{{profile_url provider_user_uid provider_id}}" class="p-author h-card" itemprop="creator">{{author_name}}</a> on <time class="dt-published" datetime="{{date_format published YYYY-mm-dd HH:mm:ss}}">{{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}</time> <span class="g-plusone" data-size="small" data-annotation="none" data-href="{{config.base_address}}/posts/{{slug}}"></span></p>
+  <p class="post_info">Written by <a href="{{profile_url author_url}}" class="p-author h-card" itemprop="creator">{{author_name}}</a> on <time class="dt-published" datetime="{{date_format published YYYY-mm-dd HH:mm:ss}}">{{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}</time> <span class="g-plusone" data-size="small" data-annotation="none" data-href="{{config.base_address}}/posts/{{slug}}"></span></p>
+  {{/if}}
+  {{#if location_latitude}}
+  <div itemscope itemtype="http://schema.org/Place">
+    <h2>Location: <a href="http://www.openstreetmap.org/?mlat={{location_latitude}}&mlon={{location_longitude}}&zoom=15">{{location_latitude}}, {{location_longitude}}</a></h2>
+    <meta itemprop="latitude" content="{{location_latitude}}">
+    <meta itemprop="longitude" content="{{location_longitude}}">
+  </div>
+  {{/if}}
   {{#if summary}}
   <div class="p-summary post_summary">{{{markdown summary}}}</div>
   {{/if}}
   <div class="p-content" itemprop="description">{{#markdown_block}}
   {{{enhance_hashtags content tags}}}
   {{/markdown_block}}</div>
+  {{#unless title}}
+  <p class="post_info"><a href="{{../config.base_address}}/posts/{{slug}}" class="u-url">Status update</a> by <a href="{{profile_url author_url}}" class="p-author h-card">{{author_name}}</a> on <time class="dt-published" datetime="{{date_format published YYYY-mm-dd HH:mm:ss}}">{{date_format published "dddd, MMMM Do YYYY, HH:mm:ss"}}</time> <span class="g-plusone" data-size="small" data-annotation="none" data-href="{{config.base_address}}/posts/{{slug}}"></span></p>
+  {{/unless}}
   </article>
   {{/with}}
   <section class="post-comments">

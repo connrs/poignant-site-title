@@ -1,4 +1,6 @@
 var Controller = require('./core');
+var newPostPath = 'new_post';
+var amendedPostPath = 'amended_post';
 var boundMethods = [
   'index','new','newPost','edit','editPost','approveDashboard','approve','approvePost','delete','confirmDelete'
 ];
@@ -7,7 +9,7 @@ function filtersNotEmpty(filters) {
   var f;
 
   for (f in filters) {
-    if (filters.hasOwnProperty(f) && filters[f] !== '' && filters[f] !== null && filters[f] !== undefined) {
+    if (filters.hasOwnProperty(f) && filters[f] !== '' && filters[f] !== null && filters[f] !== undefined && f !== 'page' && f !== 'limit') {
       return true;
     }
   }
@@ -41,7 +43,18 @@ AdminBlogController.prototype.setTagData = function (tagData) {
   this._tagData = tagData;
 };
 
+AdminBlogController.prototype.setStompClient = function (client) {
+  this._stompClient = client;
+};
+
+AdminBlogController.prototype.beforeAction = function (callback, req, res) {
+  req.view.layout = 'admin';
+  callback(req, res);
+};
+
 AdminBlogController.prototype.index = function (req, res) {
+  var limit = 20;
+  var page = req.data.page ? req.data.page : 1;
   var filters;
   var post = this._newPost();
 
@@ -52,7 +65,10 @@ AdminBlogController.prototype.index = function (req, res) {
   }
 
   req.view.template = 'admin_blog_index';
-  req.view.context.filters = {};
+  req.view.context.filters = {
+    limit: limit,
+    page: page
+  };
   req.view.context.types = {
     postStatus: this._types.postStatus.filter(function (t) { return [1,3].indexOf(t.id) !== -1; })
   };
@@ -63,8 +79,13 @@ AdminBlogController.prototype.index = function (req, res) {
       req.view.context.filters = {};
 
       if (filtersNotEmpty(req.view.context.filters)) {
-        post.find(req.view.context.filters, function (err, posts) {
-          req.view.context.posts = posts;
+        post.find(req.view.context.filters, function (err, results) {
+          req.view.context.posts = results.posts;
+          req.view.context.pagination = {
+            perPage: limit,
+            page: page,
+            pages: Math.ceil(results.count / limit)
+          };
           this._view.render(req, res);
         }.bind(this));
       }
@@ -78,8 +99,13 @@ AdminBlogController.prototype.index = function (req, res) {
       req.view.context.filters.post_status_type_id = req.data.post_status_type_id;
       req.view.context.filters.title = req.data.title;
       if (filtersNotEmpty(req.view.context.filters)) {
-        post.find(req.view.context.filters, function (err, posts) {
-          req.view.context.posts = posts;
+        post.find(req.view.context.filters, function (err, results) {
+          req.view.context.posts = results.posts;
+          req.view.context.pagination = {
+            perPage: limit,
+            page: page,
+            pages: Math.ceil(results.count / limit)
+          };
           this._view.render(req, res);
         }.bind(this));
       }
@@ -90,9 +116,16 @@ AdminBlogController.prototype.index = function (req, res) {
   }
   else {
     req.view.context.filters = req.session.get('admin_blog_index') || {};
+    req.view.context.filters.page = page;
+    req.view.context.filters.limit = limit;
     if (filtersNotEmpty(req.view.context.filters)) {
-      post.find(req.view.context.filters, function (err, posts) {
-        req.view.context.posts = posts;
+      post.find(req.view.context.filters, function (err, results) {
+          req.view.context.posts = results.posts;
+          req.view.context.pagination = {
+            perPage: limit,
+            page: page,
+            pages: Math.ceil(results.count / limit)
+          };
         this._view.render(req, res);
       }.bind(this));
     }
@@ -253,7 +286,7 @@ AdminBlogController.prototype.editPost = function (req, res) {
             req.view.context.errors = validationErrors;
             this.edit(req, res);
           }
-          else if (!postData.parent_post_id) {
+          else if (postData.post_status_type_id != 3) {
             post.save(function (err, post_id) {
               if (err) {
                 res.render500(err);
@@ -264,6 +297,7 @@ AdminBlogController.prototype.editPost = function (req, res) {
                 });
               }
               else {
+                this._publishAmendedPostNotification(post_id, req.current_user.user_id);
                 req.session.set('flash_message', 'Your post has been submitted for approval.', function (err) {
                   res.redirect(req.config.admin_base_address + '/posts' + post_id, 302);
                 });
@@ -283,6 +317,7 @@ AdminBlogController.prototype.editPost = function (req, res) {
                 });
               }
               else {
+                this._publishAmendedPostNotification(post_id, req.current_user.user_id);
                 req.session.set('flash_message', 'Your post has been submitted for approval.', function (err) {
                   res.redirect(req.config.admin_base_address + '/posts' + post_id, 302);
                 });
@@ -457,6 +492,7 @@ AdminBlogController.prototype.newPost = function (req, res) {
           });
         }
         else {
+          this._publishNewPostNotification(post_id, req.current_user.user_id);
           req.session.set('flash_message', 'Your post has been submitted for approval.', function (err) {
             res.redirect(req.config.admin_base_address + '/posts', 302);
           });
@@ -467,7 +503,7 @@ AdminBlogController.prototype.newPost = function (req, res) {
           res.redirect(req.config.admin_base_address + '/posts', 302);
         });
       }
-    });
+    }.bind(this));
   }.bind(this));
 };
 
@@ -529,6 +565,24 @@ AdminBlogController.prototype.confirmDelete = function (req, res) {
   });
 };
 
+AdminBlogController.prototype._publishNewPostNotification = function (post_id, by) {
+  this._stompClient.publish('/queue/' + newPostPath, JSON.stringify({
+    post_id: post_id,
+    by: by
+  }), {
+    'content-type': 'application/json'
+  });
+};
+
+AdminBlogController.prototype._publishAmendedPostNotification = function (post_id, by) {
+  this._stompClient.publish('/queue/' + amendedPostPath, JSON.stringify({
+    post_id: post_id,
+    by: by
+  }), {
+    'content-type': 'application/json'
+  });
+};
+
 AdminBlogController.prototype._newPost = function () {
   var post = new this._post();
   post.setPostData(this._postData);
@@ -542,7 +596,7 @@ AdminBlogController.prototype._newTag = function () {
   return tag;
 };
 
-function newAdminBlogController(view, post, postData, tag, tagData, types) {
+function newAdminBlogController(view, post, postData, tag, tagData, types, stomp) {
   var controller = new AdminBlogController(boundMethods);
   controller.setView(view);
   controller.setPost(post);
@@ -550,6 +604,7 @@ function newAdminBlogController(view, post, postData, tag, tagData, types) {
   controller.setTag(tag);
   controller.setTagData(tagData);
   controller.setTypes(types);
+  controller.setStompClient(stomp);
   return controller;
 }
 

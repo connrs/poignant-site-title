@@ -11,22 +11,19 @@ TagData.prototype.find = function (filters, callback) {
   var p = 0;
   var params = [];
 
+  if (filters.post_count) {
+    query.push('SELECT s.*, rank() OVER (ORDER BY s.post_count) AS rank');
+    query.push('FROM (');
+  }
+
   query.push('SELECT t.tag_id, t.name, t.pretty_name, t.content,');
   query.push('COUNT(p.post_id) post_count,');
   query.push('t.inserted, t.inserted_by,');
-  query.push('u.name user_name,');
-  query.push('ROUND((COUNT(p.post_id)::FLOAT / posts.post_count::FLOAT)::NUMERIC * 10, 0) post_count_ratio');
+  query.push('u.name user_name');
   query.push('FROM tag t');
   query.push('LEFT JOIN "user" u ON u.user_id = t.inserted_by');
-  query.push('LEFT JOIN (');
-    query.push('SELECT COUNT(p.post_id) post_count');
-    query.push('FROM post p');
-    query.push('INNER JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id = 3');
-    query.push('WHERE p.deleted IS NULL');
-  query.push(') posts ON TRUE');
   query.push('LEFT JOIN post_tag pt ON pt.tag_id = t.tag_id AND pt.deleted IS NULL');
-  query.push('LEFT JOIN post p ON p.post_id = pt.post_id AND p.deleted IS NULL');
-  query.push('LEFT JOIN post_status ps ON ps.post_id = p.post_id AND ps.deleted IS NULL AND ps.post_status_type_id IN(3)');
+  query.push('LEFT JOIN published_post p ON p.post_id = pt.post_id');
   query.push('WHERE t.deleted IS NULL');
 
   if (filters.name) {
@@ -39,12 +36,18 @@ TagData.prototype.find = function (filters, callback) {
     params.push(filters.tag_id);
   }
 
+  query.push('GROUP BY t.tag_id, t.name, t.pretty_name, u.name');
+
   if (filters.post_count) {
-    query.push('AND posts.post_count > 0');
+    query.push('HAVING COUNT(p.post_id) > 0');
   }
 
-  query.push('GROUP BY t.tag_id, t.name, t.pretty_name, posts.post_count, u.name');
   query.push('ORDER BY t.name');
+
+  if (filters.post_count) {
+    query.push(') AS s');
+    query.push('ORDER BY s.name');
+  }
 
   this._client.query(query.join('\n'), params, function (err, results) {
     if (err) {

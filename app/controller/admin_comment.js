@@ -8,7 +8,7 @@ function filtersNotEmpty(filters) {
   var f;
 
   for (f in filters) {
-    if (filters.hasOwnProperty(f) && filters[f] !== '' && filters[f] !== null && filters[f] !== undefined) {
+    if (filters.hasOwnProperty(f) && filters[f] !== '' && filters[f] !== null && filters[f] !== undefined && f !== 'page' && f !== 'limit' && f !== 'csrf_token') {
       return true;
     }
   }
@@ -30,7 +30,14 @@ AdminCommentController.prototype.setCommentData = function (commentData) {
   this._commentData = commentData;
 };
 
+AdminCommentController.prototype.beforeAction = function (callback, req, res) {
+  req.view.layout = 'admin';
+  callback(req, res);
+};
+
 AdminCommentController.prototype.index = function (req, res) {
+  var limit = 10;
+  var page = req.data.page ? req.data.page : 1;
   var filters;
   var comment = this._newComment();
 
@@ -40,7 +47,10 @@ AdminCommentController.prototype.index = function (req, res) {
   }
 
   req.view.template = 'admin_comments_index';
-  req.view.context.filters = {};
+  req.view.context.filters = {
+    limit: limit,
+    page: page
+  };
   req.view.context.types = {
     commentStatus: this._types.commentStatus.filter(function (t) { return [1,2].indexOf(t.id) !== -1; })
   };
@@ -48,11 +58,19 @@ AdminCommentController.prototype.index = function (req, res) {
 
   if (req.data.clear !== undefined) {
     req.session.set('admin_comments_index', {}, function (err) {
-      req.view.context.filters = {};
+      req.view.context.filters = {
+        limit: limit,
+        page: page
+      };
 
       if (filtersNotEmpty(req.view.context.filters)) {
-        comment.find(req.view.context.filters, function (err, comments) {
-          req.view.context.comments = comments;
+        comment.find(req.view.context.filters, function (err, results) {
+          req.view.context.comments = results.comments;
+          req.view.context.pagination = {
+            perPage: limit,
+            page: page,
+            pages: Math.ceil(results.count / limit)
+          };
           this._view.render(req, res);
         }.bind(this));
       }
@@ -64,9 +82,16 @@ AdminCommentController.prototype.index = function (req, res) {
   else if (Object.keys(req.data).length) {
     req.session.set('admin_comments_index', req.data, function (err) {
       req.view.context.filters = req.data;
+      req.view.context.filters.page = page;
+      req.view.context.filters.limit = limit;
       if (filtersNotEmpty(req.view.context.filters)) {
-        comment.find(req.view.context.filters, function (err, comments) {
-          req.view.context.comments = comments;
+        comment.find(req.view.context.filters, function (err, results) {
+          req.view.context.comments = results.comments;
+          req.view.context.pagination = {
+            perPage: limit,
+            page: page,
+            pages: Math.ceil(results.count / limit)
+          };
           this._view.render(req, res);
         }.bind(this));
       }
@@ -77,9 +102,21 @@ AdminCommentController.prototype.index = function (req, res) {
   }
   else {
     req.view.context.filters = req.session.get('admin_comments_index') || {};
+    req.view.context.filters.page = page;
+    req.view.context.filters.limit = limit;
     if (filtersNotEmpty(req.view.context.filters)) {
-      comment.find(req.view.context.filters, function (err, comments) {
-        req.view.context.comments = comments;
+      comment.find(req.view.context.filters, function (err, results) {
+        if (err) {
+          res.render500(err);
+          return;
+        }
+
+        req.view.context.comments = results.comments;
+        req.view.context.pagination = {
+          perPage: limit,
+          page: page,
+          pages: Math.ceil(results.count / limit)
+        };
         this._view.render(req, res);
       }.bind(this));
     }
@@ -125,7 +162,6 @@ AdminCommentController.prototype.approvePost = function (req, res) {
     return;
   }
 
-  console.log(req.data);
   if (req.data.csrf_token !== req.session.uid()) {
     res.render400();
     return;
@@ -202,136 +238,52 @@ AdminCommentController.prototype.approvePost = function (req, res) {
   }.bind(this));
 };
 
-AdminCommentController.prototype.new = function (req, res) {
-  if (!req.hasPermission()) {
-    res.render403();
-    return;
-  }
-
-  req.view.template = 'admin_blog_new';
-  req.view.context.page = { title: 'New post' };
-  this._view.render(req, res);
-};
-
-AdminCommentController.prototype.newPost = function (req, res) {
-  var post;
-
-  if (!req.current_user || !req.current_user.role_id) {
-    res.render403();
-    return;
-  }
-
-  if (Object.keys(req.data).length === 0) {
-    req.view.errors = { general: 'No data submitted' };
-    this.new(req, res);
-    return;
-  }
-
-  if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-    return;
-  }
-
-  req.data.post_status_type_id = +req.data.post_status_type_id;
-  req.data.by = req.current_user.user_id;
-  post = this._newPost();
-  post.setData(req.data);
-  post.validate(function (err, validationErrors) {
-    if (err) {
-      res.render500(err);
-      return;
-    }
-
-    if (validationErrors !== false) {
-      req.view.context.post = req.data;
-      req.view.context.errors = validationErrors;
-      this.new(req, res);
-      return;
-    }
-
-    post.save(function (err, post_id) {
-      if (err) {
-        res.render500(err);
-        return;
-      }
-
-      if (req.data.post_status_type_id === 2) {
-        if (req.current_user.role_id === 1) {
-          req.session.set('flash_message', 'Please approve your post now to publish it.', function (err) {
-            res.redirect(req.config.admin_base_address + '/posts/approve/' + post_id, 302);
-          });
-        }
-        else {
-          req.session.set('flash_message', 'Your post has been submitted for approval.', function (err) {
-            res.redirect(req.config.admin_base_address + '/posts', 302);
-          });
-        }
-      }
-      else if (req.data.post_status_type_id === 1) {
-        req.session.set('flash_message', 'Your post has been saved for later.', function (err) {
-          res.redirect(req.config.admin_base_address + '/posts', 302);
-        });
-      }
-    });
-  }.bind(this));
-};
-
 AdminCommentController.prototype.delete = function (req, res) {
-  var post;
-
   if (!req.hasPermission(['su', 'editor'])) {
     res.render403();
-    return;
   }
-
-  if (Object.keys(req.data).length === 0) {
+  else if (Object.keys(req.data).length === 0) {
     res.render400();
-    return;
   }
-
-  if (req.data.csrf_token !== req.session.uid()) {
+  else if (req.data.csrf_token !== req.session.uid()) {
     res.render400();
-    return;
   }
-
-  req.view.template = 'admin_blog_delete';
-  req.view.context.post_ids = req.data.post_id;
-  this._view.render(req, res);
+  else {
+    req.view.template = 'admin_comments_delete';
+    req.view.context.comment_ids = req.data.comment_id;
+    this._view.render(req, res);
+  }
 };
 
 AdminCommentController.prototype.confirmDelete = function (req, res) {
-  var post;
+  var comment;
 
   if (!req.hasPermission(['su', 'editor'])) {
     res.render403();
-    return;
   }
-
-  if (Object.prototype.toString.call(req.data.post_id) !== '[object Array]' || req.data.post_id.length === 0) {
+  else if (!Array.isArray(req.data.comment_id) || req.data.comment_id.length === 0) {
     res.render400();
-    return;
   }
-
-  if (req.data.csrf_token !== req.session.uid()) {
+  else if (req.data.csrf_token !== req.session.uid()) {
     res.render400();
-    return;
   }
-
-  post = this._newPost();
-  post.setData({
-    post_id: req.data.post_id,
-    by: req.current_user.user_id
-  });
-  post.delete(function (err) {
-    if (err) {
-      res.render500(err);
-      return;
-    }
-
-    req.session.set('flash_message', 'The posts have been deleted.', function (err) {
-      res.redirect(req.config.admin_base_address + '/posts', 302);
+  else {
+    comment = this._newComment();
+    comment.setData({
+      comment_id: req.data.comment_id,
+      by: req.current_user.user_id
     });
-  });
+    comment.delete(function (err) {
+      if (err) {
+        res.render500(err);
+      }
+      else {
+        req.session.set('flash_message', 'The comments have been deleted.', function (err) {
+          res.redirect(req.config.admin_base_address + '/comments', 302);
+        });
+      }
+    });
+  }
 };
 
 AdminCommentController.prototype._newComment = function () {
