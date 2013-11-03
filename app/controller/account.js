@@ -1,20 +1,22 @@
 var Controller = require('./core');
+var User = require('../../lib/model/user.js');
 var boundMethods = [
   'new', 'postNew'
 ];
 
 function AccountController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['get', '/account/new', this.new.bind(this)],
+    ['head', '/account/new', this.new.bind(this)],
+    ['post', '/account/new', this.postNew.bind(this)]
+  ];
 }
 
 AccountController.prototype = Object.create(Controller.prototype, { constructor: AccountController });
 
-AccountController.prototype.setUser = function (User) {
-  this._User = User;
-};
-
-AccountController.prototype.setUserData = function (userData) {
-  this._userData = userData;
+AccountController.prototype.setUserStore = function (userStore) {
+  this._userStore = userStore;
 }
 
 AccountController.prototype.new = function (req, res) {
@@ -38,8 +40,7 @@ AccountController.prototype.postNew = function (req, res) {
   }
   else {
     accountNew = req.session.get('account_new');
-    user = new this._User();
-    user.setUserData(this._userData);
+    user = this._user();
     user.setData({
       name: req.data.name,
       email: accountNew.identity.email,
@@ -72,11 +73,14 @@ AccountController.prototype.postNew = function (req, res) {
   }
 };
 
-function newAccountController(view, User, userData) {
+AccountController.prototype._user = function () {
+  return new User(this._userStore);
+}
+
+function newAccountController(view, userStore) {
   var controller = new AccountController(boundMethods);
   controller.setView(view);
-  controller.setUser(User);
-  controller.setUserData(userData);
+  controller.setUserStore(userStore);
   return controller;
 }
 

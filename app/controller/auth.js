@@ -1,5 +1,5 @@
 var Controller = require('./core');
-var User = require('../../lib/models/user.js');
+var User = require('../../lib/model/user.js');
 var boundMethods = [
   'index',
   'authWith',
@@ -11,6 +11,19 @@ var boundMethods = [
 
 function AuthController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['all', '/auth/with_:idp', this.authWith.bind(this)],
+    ['head', '/auth/with_:idp', this.authWith.bind(this)],
+    ['all', '/auth/google(\\?.*)?', this.google.bind(this)],
+    ['head', '/auth/google(\\?.*)?', this.google.bind(this)],
+    ['all', '/auth/github(\\?.*)?', this.github.bind(this)],
+    ['head', '/auth/github(\\?.*)?', this.github.bind(this)],
+    ['all', '/auth/facebook(\\?.*)?', this.facebook.bind(this)],
+    ['head', '/auth/facebook(\\?.*)?', this.facebook.bind(this)],
+    ['all', '/auth/persona(\\?.*)?', this.persona.bind(this)],
+    ['head', '/auth/persona(\\?.*)?', this.persona.bind(this)],
+    ['get', '/auth/logout', this.logout.bind(this)]
+  ];
 }
 
 AuthController.prototype = Object.create(Controller.prototype, { constructor: AuthController });
@@ -23,8 +36,8 @@ AuthController.prototype.setUser = function (User) {
   this._User = User;
 };
 
-AuthController.prototype.setUserData = function (userData) {
-  this._userData = userData;
+AuthController.prototype.setUserStore = function (userStore) {
+  this._userStore = userStore;
 };
 
 AuthController.prototype.index = function (req, res) {
@@ -61,8 +74,7 @@ AuthController.prototype.google = function (req, res) {
         res.render500(err);
       }
       else {
-        this._newUser().findByIdentity(identity.id, 1, function (err, userData) {
-          console.log(identity);
+        this._user().findByIdentity(identity.id, 1, function (err, userData) {
           if (err) {
             res.render500(err);
           }
@@ -73,7 +85,7 @@ AuthController.prototype.google = function (req, res) {
           }
           else {
             req.session.set('current_user_id', userData.user_id, function (err) {
-              var user = this._newUser();
+              var user = this._user();
               user.setData({
                 software_version_id: req.config.softwareVersion,
                 user_id: userData.user_id,
@@ -100,7 +112,7 @@ AuthController.prototype.github = function (req, res) {
         res.render500(err);
       }
       else {
-        this._newUser().findByIdentity(identity.id, 2, function (err, userData) {
+        this._user().findByIdentity(identity.id, 2, function (err, userData) {
           if (err) {
             res.render500(err);
           }
@@ -111,7 +123,7 @@ AuthController.prototype.github = function (req, res) {
           }
           else {
             req.session.set('current_user_id', userData.user_id, function (err) {
-              var user = this._newUser();
+              var user = this._user();
               user.setData({
                 software_version_id: req.config.softwareVersion,
                 user_id: userData.user_id,
@@ -138,7 +150,7 @@ AuthController.prototype.facebook = function (req, res) {
         res.render500(err);
       }
       else {
-        this._newUser().findByIdentity(identity.id, 3, function (err, userData) {
+        this._user().findByIdentity(identity.id, 3, function (err, userData) {
           if (err) {
             res.render500(err);
           }
@@ -149,7 +161,7 @@ AuthController.prototype.facebook = function (req, res) {
           }
           else {
             req.session.set('current_user_id', userData.user_id, function (err) {
-              var user = this._newUser();
+              var user = this._user();
               user.setData({
                 software_version_id: req.config.softwareVersion,
                 user_id: userData.user_id,
@@ -172,7 +184,7 @@ AuthController.prototype.persona = function (req, res) {
       res.render500(err);
     }
     else {
-      this._newUser().findByIdentity(identity.id, 4, function (err, userData) {
+      this._user().findByIdentity(identity.id, 4, function (err, userData) {
         if (err) {
           res.render500(err);
         }
@@ -184,7 +196,7 @@ AuthController.prototype.persona = function (req, res) {
         }
         else {
           req.session.set('current_user_id', userData.user_id, function (err) {
-            var user = this._newUser();
+            var user = this._user();
             user.setData({
               software_version_id: req.config.softwareVersion,
               user_id: userData.user_id,
@@ -202,23 +214,20 @@ AuthController.prototype.persona = function (req, res) {
 };
 
 AuthController.prototype.logout = function (req, res) {
-  req.session.remove(req.session.uid(), function (err) {
+  req.session.remove(function (err) {
     res.redirect('/', 302);
   });
 };
 
-AuthController.prototype._newUser = function () {
-  var user = new User();
-  user.setUserData(this._userData);
-  return user;
-};
+AuthController.prototype._user = function () {
+  return new User(this._userStore);
+}
 
-function newAuthController(view, idp, User, userData) {
+function newAuthController(view, idp, userStore) {
   var controller = new AuthController(boundMethods);
   controller.setView(view);
   controller.setIDP(idp);
-  controller.setUser(User);
-  controller.setUserData(userData);
+  controller.setUserStore(userStore);
   return controller;
 }
 

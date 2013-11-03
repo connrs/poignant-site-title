@@ -1,4 +1,6 @@
 var Controller = require('./core');
+var Post = require('../../lib/model/post.js');
+var Tag = require('../../lib/model/tag.js');
 var newPostPath = 'new_post';
 var amendedPostPath = 'amended_post';
 var boundMethods = [
@@ -19,6 +21,23 @@ function filtersNotEmpty(filters) {
 
 function AdminBlogController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['all', '/admin/posts', this.index.bind(this)],
+    ['head', '/admin/posts', this.index.bind(this)],
+    ['get', '/admin/posts/new', this.new.bind(this)],
+    ['head', '/admin/posts/new', this.new.bind(this)],
+    ['post', '/admin/posts/new', this.newPost.bind(this)],
+    ['get', '/admin/posts/edit/:post_id', this.edit.bind(this)],
+    ['head', '/admin/posts/edit/:post_id', this.edit.bind(this)],
+    ['post', '/admin/posts/edit/:post_id', this.editPost.bind(this)],
+    ['get', '/admin/posts/approve', this.approveDashboard.bind(this)],
+    ['head', '/admin/posts/approve', this.approveDashboard.bind(this)],
+    ['get', '/admin/posts/approve/:post_id', this.approve.bind(this)],
+    ['head', '/admin/posts/approve/:post_id', this.approve.bind(this)],
+    ['post', '/admin/posts/approve/:post_id', this.approvePost.bind(this)],
+    ['post', '/admin/posts/delete', this.delete.bind(this)],
+    ['post', '/admin/posts/confirm_delete', this.confirmDelete.bind(this)]
+  ];
 }
 
 AdminBlogController.prototype = Object.create(Controller.prototype, { constructor: AdminBlogController });
@@ -27,20 +46,12 @@ AdminBlogController.prototype.setTypes = function (types) {
   this._types = types;
 };
 
-AdminBlogController.prototype.setPost = function (post) {
-  this._post = post;
+AdminBlogController.prototype.setPostStore = function (postStore) {
+  this._postStore = postStore;
 };
 
-AdminBlogController.prototype.setTag = function (tag) {
-  this._tag = tag;
-};
-
-AdminBlogController.prototype.setPostData = function (postData) {
-  this._postData = postData;
-};
-
-AdminBlogController.prototype.setTagData = function (tagData) {
-  this._tagData = tagData;
+AdminBlogController.prototype.setTagStore = function (tagStore) {
+  this._tagStore = tagStore;
 };
 
 AdminBlogController.prototype.setStompClient = function (client) {
@@ -56,7 +67,7 @@ AdminBlogController.prototype.index = function (req, res) {
   var limit = 20;
   var page = req.data.page ? req.data.page : 1;
   var filters;
-  var post = this._newPost();
+  var post = this._post();
 
   res.setHeader('Cache-Control', 'no-cache');
   if (!req.hasPermission()) {
@@ -150,7 +161,7 @@ AdminBlogController.prototype.edit = function (req, res) {
     return;
   }
 
-  post = this._newPost();
+  post = this._post();
   post.findById(req.params.post_id, function (err, post) {
     if (err) {
       res.render500(err);
@@ -189,7 +200,7 @@ AdminBlogController.prototype.editPost = function (req, res) {
     return;
   }
 
-  var post = this._newPost();
+  var post = this._post();
   req.data.post_status_type_id = +req.data.post_status_type_id;
   req.data.by = req.current_user.user_id;
   post.setData(req.data);
@@ -335,7 +346,7 @@ AdminBlogController.prototype.approveDashboard = function (req, res) {
     res.render403();
   }
   else {
-    this._newPost().getUnapproved(function (err, posts) {
+    this._post().getUnapproved(function (err, posts) {
       if (err) {
         res.render500(err);
       }
@@ -356,7 +367,7 @@ AdminBlogController.prototype.approve = function (req, res) {
   }
 
   req.view.template = 'admin_blog_approve_post';
-  this._newPost().findById(req.params.post_id, function (err, post) {
+  this._post().findById(req.params.post_id, function (err, post) {
     if (err) {
       res.render500(err);
     }
@@ -390,7 +401,7 @@ AdminBlogController.prototype.approvePost = function (req, res) {
     return;
   }
 
-  var post = this._newPost();
+  var post = this._post();
   post.setData({post_id: req.params.post_id, by: req.current_user.user_id});
   req.data.post_status_type_id = +req.data.post_status_type_id;
 
@@ -464,7 +475,7 @@ AdminBlogController.prototype.newPost = function (req, res) {
 
   req.data.post_status_type_id = +req.data.post_status_type_id;
   req.data.by = req.current_user.user_id;
-  post = this._newPost();
+  post = this._post();
   post.setData(req.data);
   post.validate(function (err, validationErrors) {
     if (err) {
@@ -548,7 +559,7 @@ AdminBlogController.prototype.confirmDelete = function (req, res) {
     return;
   }
 
-  post = this._newPost();
+  post = this._post();
   post.setData({
     post_id: req.data.post_id,
     by: req.current_user.user_id
@@ -583,26 +594,19 @@ AdminBlogController.prototype._publishAmendedPostNotification = function (post_i
   });
 };
 
-AdminBlogController.prototype._newPost = function () {
-  var post = new this._post();
-  post.setPostData(this._postData);
-  post.setTagData(this._tagData);
-  return post;
+AdminBlogController.prototype._post = function () {
+  return Post(this._postStore);
 };
 
-AdminBlogController.prototype._newTag = function () {
-  var tag = new this._tag();
-  tag.setTagData(this._tagData);
-  return tag;
+AdminBlogController.prototype._tag = function () {
+  return Tag(this._tagStore);
 };
 
-function newAdminBlogController(view, post, postData, tag, tagData, types, stomp) {
+function newAdminBlogController(view, postStore, tagStore, types, stomp) {
   var controller = new AdminBlogController(boundMethods);
   controller.setView(view);
-  controller.setPost(post);
-  controller.setPostData(postData);
-  controller.setTag(tag);
-  controller.setTagData(tagData);
+  controller.setPostStore(postStore);
+  controller.setTagStore(tagStore);
   controller.setTypes(types);
   controller.setStompClient(stomp);
   return controller;

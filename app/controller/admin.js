@@ -1,17 +1,20 @@
 var Controller = require('./core');
-var Post = require('../../lib/models/post.js');
 var boundMethods = [
   'index'
 ];
 
 function AdminController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['get', '/admin', this.index.bind(this)],
+    ['head', '/admin', this.index.bind(this)]
+  ];
 }
 
 AdminController.prototype = Object.create(Controller.prototype, { constructor: AdminController });
 
-AdminController.prototype.setPostData = function (postData) {
-  this._postData = postData;
+AdminController.prototype.setPostActivityStore = function (postActivityStore) {
+  this._postActivityStore = postActivityStore;
 };
 
 AdminController.prototype.beforeAction = function (callback, req, res) {
@@ -35,27 +38,21 @@ AdminController.prototype.index = function (req, res) {
     }
   }
 
-  this._newPost().getActivity(function (err, result) {
+  this._postActivityStore.getActivity(function (err, postActivity) {
     if (err) {
       res.render500(err);
     }
     else {
-      req.view.context.post_activity = result.rows;
+      req.view.context.post_activity = postActivity;
       render.apply(this);
     }
   }.bind(this));
 };
 
-AdminController.prototype._newPost = function () {
-  var post = new Post();
-  post.setPostData(this._postData);
-  return post;
-}
-
-function newAdminController(view, postData) {
+function newAdminController(view, postActivityStore) {
   var controller = new AdminController(boundMethods);
   controller.setView(view);
-  controller.setPostData(postData);
+  controller.setPostActivityStore(postActivityStore);
   return controller;
 }
 

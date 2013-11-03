@@ -1,5 +1,5 @@
 var Controller = require('./core');
-var Comment = require('../../lib/models/comment.js');
+var Comment = require('../../lib/model/comment.js');
 var boundMethods = [
   'index','approve','approvePost','delete','confirmDelete'
 ];
@@ -18,6 +18,15 @@ function filtersNotEmpty(filters) {
 
 function AdminCommentController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['all', '/admin/comments', this.index.bind(this)],
+    ['head', '/admin/comments', this.index.bind(this)],
+    ['get', '/admin/comments/approve/:comment_id', this.approve.bind(this)],
+    ['head', '/admin/comments/approve/:comment_id', this.approve.bind(this)],
+    ['post', '/admin/comments/approve/:comment_id', this.approvePost.bind(this)],
+    ['post', '/admin/comments/delete', this.delete.bind(this)],
+    ['post', '/admin/comments/confirm_delete', this.confirmDelete.bind(this)]
+  ];
 }
 
 AdminCommentController.prototype = Object.create(Controller.prototype, { constructor: AdminCommentController });
@@ -26,8 +35,8 @@ AdminCommentController.prototype.setTypes = function (types) {
   this._types = types;
 };
 
-AdminCommentController.prototype.setCommentData = function (commentData) {
-  this._commentData = commentData;
+AdminCommentController.prototype.setCommentStore = function (commentStore) {
+  this._commentStore = commentStore;
 };
 
 AdminCommentController.prototype.beforeAction = function (callback, req, res) {
@@ -39,7 +48,7 @@ AdminCommentController.prototype.index = function (req, res) {
   var limit = 10;
   var page = req.data.page ? req.data.page : 1;
   var filters;
-  var comment = this._newComment();
+  var comment = this._comment();
 
   if (!req.hasPermission(['su', 'editor'])) {
     res.render403();
@@ -133,7 +142,7 @@ AdminCommentController.prototype.approve = function (req, res) {
   }
 
   req.view.template = 'admin_comments_approve';
-  this._newComment().findById(req.params.comment_id, function (err, comment) {
+  this._comment().findById(req.params.comment_id, function (err, comment) {
     if (err) {
       res.render500(err);
     }
@@ -167,7 +176,7 @@ AdminCommentController.prototype.approvePost = function (req, res) {
     return;
   }
 
-  var comment = this._newComment();
+  var comment = this._comment();
   comment.setData({comment_id: req.params.comment_id, by: req.current_user.user_id, content: req.data.content});
   req.data.comment_status_type_id = +req.data.comment_status_type_id;
 
@@ -268,7 +277,7 @@ AdminCommentController.prototype.confirmDelete = function (req, res) {
     res.render400();
   }
   else {
-    comment = this._newComment();
+    comment = this._comment();
     comment.setData({
       comment_id: req.data.comment_id,
       by: req.current_user.user_id
@@ -286,16 +295,14 @@ AdminCommentController.prototype.confirmDelete = function (req, res) {
   }
 };
 
-AdminCommentController.prototype._newComment = function () {
-  var comment = new Comment();
-  comment.setCommentData(this._commentData);
-  return comment;
-};
+AdminCommentController.prototype._comment = function () {
+  return Comment(this._commentStore);
+}
 
-function newAdminCommentController(view, commentData, types) {
+function newAdminCommentController(view, commentStore, types) {
   var controller = new AdminCommentController(boundMethods);
   controller.setView(view);
-  controller.setCommentData(commentData);
+  controller.setCommentStore(commentStore);
   controller.setTypes(types);
   return controller;
 }

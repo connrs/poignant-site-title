@@ -10,8 +10,7 @@
   "author": "",
   "license": "BSD",
   "dependencies": {
-    "pg": "~0.8.4",
-    "sessions": "0.0.2-7",
+    "pg": "2.8.2",
     "oauth": "~0.9.10",
     "xtend": "~2.0.5",
     "jwt-simple": "~0.1.0",
@@ -26,7 +25,12 @@
     "find-hashtags": "~0.1.0",
     "stomp-client": "~0.4.0",
     "idp-persona": "0.0.1",
-    "sessions-pg-store": "0.0.1"
+    "ftybr": "0.2.0",
+    "ftybr-parse-formdata": "0.0.1",
+    "ftybr-add-to-req": "0.0.2",
+    "ftybr-add-to-res": "0.0.1",
+    "ftybr-pg-session": "0.2.3",
+    "pg-sugar": "0.0.2"
   },
   "devDependencies": {
     "grunt": "~0.4.1"

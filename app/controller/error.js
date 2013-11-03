@@ -5,6 +5,12 @@ var boundMethods = [
 
 function ErrorController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['404', this.notFound.bind(this)],
+    ['500', this.internalServerError.bind(this)],
+    ['400', this.badRequest.bind(this)],
+    ['403', this.forbidden.bind(this)]
+  ];
 }
 
 ErrorController.prototype = Object.create(Controller.prototype, { constructor: ErrorController });

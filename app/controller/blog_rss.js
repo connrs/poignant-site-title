@@ -1,5 +1,5 @@
 var Controller = require('./core');
-var Post = require('../../lib/models/post.js');
+var Post = require('../../lib/model/post.js');
 var marked = require('marked');
 var boundMethods = [
   'posts'
@@ -7,17 +7,21 @@ var boundMethods = [
 
 function BlogController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['get', '/posts.rss', this.posts.bind(this)],
+    ['head', '/posts.rss', this.posts.bind(this)]
+  ];
 }
 
 BlogController.prototype = Object.create(Controller.prototype, { constructor: BlogController });
 
-BlogController.prototype.setPostData = function (postData) {
-  this._postData = postData;
+BlogController.prototype.setPostStore = function (postStore) {
+  this._postStore = postStore;
 };
 
 BlogController.prototype.posts = function (req, res) {
   res.setHeader('Cache-control', 'no-cache,max-age=0');
-  this._newPost().getLatest(10, function (err, posts) {
+  this._post().getLatest(10, function (err, posts) {
     var maxLastMod;
 
     if (err) {
@@ -39,16 +43,14 @@ BlogController.prototype.posts = function (req, res) {
   }.bind(this));
 }
 
-BlogController.prototype._newPost = function () {
-  var post = new Post();
-  post.setPostData(this._postData);
-  return post;
+BlogController.prototype._post = function () {
+  return Post(this._postStore);
 };
 
-function newBlogController(view, postData) {
+function newBlogController(view, postStore) {
   var controller = new BlogController(boundMethods);
+  controller.setPostStore(postStore);
   controller.setView(view);
-  controller.setPostData(postData);
   return controller;
 }
 

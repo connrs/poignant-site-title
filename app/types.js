@@ -8,7 +8,12 @@ function initDBTypes(app, callback) {
   queries.commentStatus = 'SELECT comment_status_type_id id, name FROM comment_status_type WHERE deleted IS NULL';
 
   Object.keys(queries).forEach(function (key) {
-    app.dbClient.query(queries[key], function (err, results) {
+    app.storeClient.client(function (err, query) {
+      if (err) {
+        throw err;
+      }
+
+      query(queries[key], function (err, results) {
       if (err) {
         throw err;
         return;
@@ -20,6 +25,7 @@ function initDBTypes(app, callback) {
       if (typesCount === 0) {
         callback();
       }
+      });
     });
   });
 }

@@ -1,7 +1,7 @@
 var Controller = require('./core');
-var Post = require('../../lib/models/post.js');
-var Tag = require('../../lib/models/tag.js');
-var Comment = require('../../lib/models/comment.js');
+var Post = require('../../lib/model/post.js');
+var Tag = require('../../lib/model/tag.js');
+var Comment = require('../../lib/model/comment.js');
 var S = require('string');
 var boundMethods = [
   'home', 'view', 'index', 'tag', 'tags', 'newCommentPost'
@@ -10,20 +10,37 @@ var commentPath = 'comment';
 
 function BlogController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['get', '/', this.home.bind(this)],
+    ['head', '/', this.home.bind(this)],
+    ['get', '/posts/:slug', this.view.bind(this)],
+    ['head', '/posts/:slug', this.view.bind(this)],
+    ['post', '/posts/:slug', this.newCommentPost.bind(this)],
+    ['get', '/archives', this.index.bind(this)],
+    ['head', '/archives', this.index.bind(this)],
+    ['get', '/archives/:page', this.index.bind(this)],
+    ['head', '/archives/:page', this.index.bind(this)],
+    ['get', '/tags', this.tags.bind(this)],
+    ['head', '/tags', this.tags.bind(this)],
+    ['get', '/tags/:name', this.tag.bind(this)],
+    ['head', '/tags/:name', this.tag.bind(this)],
+    ['get', '/tags/:name/:page', this.tag.bind(this)],
+    ['head', '/tags/:name/:page', this.tag.bind(this)]
+  ];
 }
 
 BlogController.prototype = Object.create(Controller.prototype, { constructor: BlogController });
 
-BlogController.prototype.setPostData = function (postData) {
-  this._postData = postData;
+BlogController.prototype.setPostStore = function (postStore) {
+  this._postStore = postStore;
 };
 
-BlogController.prototype.setTagData = function (tagData) {
-  this._tagData = tagData;
+BlogController.prototype.setTagStore = function (tagStore) {
+  this._tagStore = tagStore;
 };
 
-BlogController.prototype.setCommentData = function (commentData) {
-  this._commentData = commentData;
+BlogController.prototype.setCommentStore = function (commentStore) {
+  this._commentStore = commentStore;
 };
 
 BlogController.prototype.setStompClient = function (client) {
@@ -32,7 +49,7 @@ BlogController.prototype.setStompClient = function (client) {
 
 BlogController.prototype.home = function (req, res) {
   res.setHeader('Cache-control', 'no-cache,max-age=0');
-  this._newPost().getLatest(3, function (err, posts) {
+  this._post().getLatest(3, function (err, posts) {
     if (err) {
       res.render500(err);
     }
@@ -54,7 +71,7 @@ BlogController.prototype.index = function (req, res) {
   };
 
   res.setHeader('Cache-control', 'no-cache,max-age=0');
-  this._newPost().find(filters, function (err, results) {
+  this._post().find(filters, function (err, results) {
     if (err) {
       res.render500(err);
     }
@@ -81,8 +98,8 @@ BlogController.prototype.index = function (req, res) {
 BlogController.prototype.tag = function (req, res) {
   var limit = 10;
   var start = req.params.page ? (req.params.page - 1) * limit : 0;
-  var tag = this._newTag();
-  var post = this._newPost();
+  var tag = this._tag();
+  var post = this._post();
 
   tag.findByName(req.params.name, function (err, tag) {
     if (err) {
@@ -126,7 +143,7 @@ BlogController.prototype.tag = function (req, res) {
 };
 
 BlogController.prototype.tags = function (req, res) {
-  this._newTag().allWithPosts(function (err, tags) {
+  this._tag().allWithPosts(function (err, tags) {
     if (err) {
       res.render500(err);
     }
@@ -142,12 +159,12 @@ BlogController.prototype.tags = function (req, res) {
 };
 
 BlogController.prototype.view = function (req, res) {
-  this._newPost().getBySlug(req.params.slug, function (err, post) {
+  this._post().getBySlug(req.params.slug, function (err, post) {
     if (err) {
       res.render500(err);
     }
     else {
-      var comment = this._newComment();
+      var comment = this._comment();
       comment.setData({
         post_id: post.post_id
       });
@@ -186,7 +203,7 @@ BlogController.prototype.newCommentPost = function (req, res) {
   else {
     req.data.by = req.current_user.user_id;
     req.data.comment_type_id = 1;
-    comment = this._newComment();
+    comment = this._comment();
     comment.setData(req.data);
     comment.validate(function (err, validationErrors) {
       if (err) {
@@ -225,30 +242,24 @@ BlogController.prototype._publishCommentNotification = function (post_id, commen
   });
 };
 
-BlogController.prototype._newPost = function () {
-  var post = new Post();
-  post.setPostData(this._postData);
-  return post;
-};
+BlogController.prototype._post = function () {
+  return Post(this._postStore);
+}
 
-BlogController.prototype._newTag = function () {
-  var tag = new Tag();
-  tag.setTagData(this._tagData);
-  return tag;
-};
+BlogController.prototype._tag = function () {
+  return Tag(this._tagStore);
+}
 
-BlogController.prototype._newComment = function () {
-  var comment = new Comment();
-  comment.setCommentData(this._commentData);
-  return comment;
-};
+BlogController.prototype._comment = function () {
+  return Comment(this._commentStore);
+}
 
-function newBlogController(view, postData, tagData, commentData, stompClient) {
+function newBlogController(view, postStore, tagStore, commentStore, stompClient) {
   var controller = new BlogController(boundMethods);
   controller.setView(view);
-  controller.setPostData(postData);
-  controller.setCommentData(commentData);
-  controller.setTagData(tagData);
+  controller.setPostStore(postStore);
+  controller.setTagStore(tagStore);
+  controller.setCommentStore(commentStore);
   controller.setStompClient(stompClient);
   return controller;
 }

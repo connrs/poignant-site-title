@@ -1,32 +1,36 @@
+var blogController = require('./controller/blog');
+var blogRssController = require('./controller/blog_rss');
+var adminBlogController = require('./controller/admin_blog');
+var adminTagController = require('./controller/admin_tag');
+var adminCommentController = require('./controller/admin_comment');
+var authController = require('./controller/auth');
+var accountController = require('./controller/account');
+var errorController = require('./controller/error');
+var adminController = require('./controller/admin');
+
 var newHTMLView = require('./view/html');
 var newRSSView = require('./view/rss');
-var newAccountController = require('./controller/account')
-var newAuthController = require('./controller/auth');
-var newBlogController = require('./controller/blog');
-var newBlogRSSController = require('./controller/blog_rss');
-var newAdminController = require('./controller/admin');
-var newAdminBlogController = require('./controller/admin_blog');
-var newAdminTagController = require('./controller/admin_tag.js');
-var newErrorController = require('./controller/error');
+
 var newAdminSettingsController = require('./controller/admin_settings');
 var newAdminCommentsController = require('./controller/admin_comment.js');
-var newApi10WebmentionController = require('./controller/api/1.0/webmention.js');
+//var newApi10WebmentionController = require('./controller/api/1.0/webmention.js');
 
-function initControllers(app) {
-    app.controller = {};
-    app.controller.error = newErrorController(newHTMLView(app.templates));
-    app.controller.account = newAccountController(newHTMLView(app.templates), app.model.User, app.db.user);
-    app.controller.auth = newAuthController(newHTMLView(app.templates), app.idp, app.model.User, app.db.user);
-    app.controller.blog = newBlogController(newHTMLView(app.templates), app.db.post, app.db.tag, app.db.comment, app.stomp);
-    app.controller.blog_rss = newBlogRSSController(newRSSView(), app.db.post);
-    app.controller.admin = newAdminController(newHTMLView(app.templates), app.db.post);
-    app.controller.admin_blog = newAdminBlogController(newHTMLView(app.templates), app.model.Post, app.db.post, app.model.Tag, app.db.tag, app.types, app.stomp);
-    app.controller.admin_tag = newAdminTagController(newHTMLView(app.templates), app.db.tag);
-    app.controller.admin_settings = newAdminSettingsController(newHTMLView(app.templates), app.events, app.config);
-    app.controller.admin_comment = newAdminCommentsController(newHTMLView(app.templates), app.db.comment, app.types);
-    app.controller.api_1_0 = {
-      webmention: newApi10WebmentionController(newHTMLView(app.templates), app.db.post, app.stomp)
-    };
+function init(app, done) {
+  app.controller = {
+    blog: blogController(newHTMLView(app.templates), app.store.post, app.store.tag, app.store.comment, app.stomp),
+    blog_rss: blogRssController(newRSSView(), app.store.post),
+    admin_blog: adminBlogController(newHTMLView(app.templates), app.store.post, app.store.tag, app.types, app.stomp),
+    admin_tag: adminTagController(newHTMLView(app.templates), app.store.tag),
+    admin_comment: adminCommentController(newHTMLView(app.templates), app.store.comment, app.types),
+    auth: authController(newHTMLView(app.templates), app.idp, app.store.user),
+    account: accountController(newHTMLView(app.templates), app.store.user),
+    error: errorController(newHTMLView(app.templates)),
+    admin: adminController(newHTMLView(app.templates), app.store.postActivity)
+  };
+
+  app.controller.admin_settings = newAdminSettingsController(newHTMLView(app.templates), app.events, app.config);
+  //app.controller.webmention = newApi10WebmentionController(newHTMLView(app.templates), app.db.post, app.stomp);
+  done();
 }
 
-module.exports = initControllers;
+module.exports = init;

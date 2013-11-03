@@ -8,6 +8,9 @@ var webmentionPath = 'webmention_verify';
 
 function WebmentionController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['post', '/api/1.0/webmention', this.index.bind(this)]
+  ];
 }
 
 WebmentionController.prototype = Object.create(Controller.prototype, { constructor: WebmentionController });

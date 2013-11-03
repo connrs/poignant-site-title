@@ -1,5 +1,5 @@
 var Controller = require('./core');
-var Tag = require('../../lib/models/tag.js');
+var Tag = require('../../lib/model/tag.js');
 var boundMethods = [
   'index', 'edit', 'editPost', 'new', 'newPost', 'delete', 'confirmDelete'
 ];
@@ -18,12 +18,24 @@ function filtersNotEmpty(filters) {
 
 function AdminTagController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['all', '/admin/tags', this.index.bind(this)],
+    ['head', '/admin/tags', this.index.bind(this)],
+    ['get', '/admin/tags/new', this.new.bind(this)],
+    ['head', '/admin/tags/new', this.new.bind(this)],
+    ['post', '/admin/tags/new', this.newPost.bind(this)],
+    ['get', '/admin/tags/edit/:tag_id', this.edit.bind(this)],
+    ['head', '/admin/tags/edit/:tag_id', this.edit.bind(this)],
+    ['post', '/admin/tags/edit/:tag_id', this.editPost.bind(this)],
+    ['post', '/admin/tags/delete', this.delete.bind(this)],
+    ['post', '/admin/tags/confirm_delete', this.confirmDelete.bind(this)]
+  ];
 }
 
 AdminTagController.prototype = Object.create(Controller.prototype, { constructor: AdminTagController });
 
-AdminTagController.prototype.setTagData = function (tagData) {
-  this._tagData = tagData;
+AdminTagController.prototype.setTagStore = function (tagStore) {
+  this._tagStore = tagStore;
 };
 
 AdminTagController.prototype.beforeAction = function (callback, req, res) {
@@ -33,7 +45,7 @@ AdminTagController.prototype.beforeAction = function (callback, req, res) {
 
 AdminTagController.prototype.index = function (req, res) {
   var filters;
-  var tag = this._newTag();
+  var tag = this._tag();
 
   res.setHeader('Cache-Control', 'no-cache');
   if (!req.current_user || !req.current_user.role_id) {
@@ -84,7 +96,7 @@ AdminTagController.prototype.edit = function (req, res) {
     return;
   }
 
-  this._newTag().find({ tag_id: req.params.tag_id }, function (err, tag) {
+  this._tag().find({ tag_id: req.params.tag_id }, function (err, tag) {
     if (err) {
       res.render500(err);
     }
@@ -112,7 +124,7 @@ AdminTagController.prototype.editPost = function (req, res) {
     return;
   }
 
-  var tag = this._newTag();
+  var tag = this._tag();
   req.data.by = req.current_user.user_id;
   tag.setData(req.data);
 
@@ -186,7 +198,7 @@ AdminTagController.prototype.newPost = function (req, res) {
   }
   else {
     req.data.by = req.current_user.user_id;
-    tag = this._newTag();
+    tag = this._tag();
     tag.setData(req.data);
     tag.validate(function (err, validationErrors) {
       if (err) {
@@ -248,7 +260,7 @@ AdminTagController.prototype.confirmDelete = function (req, res) {
     return;
   }
   else {
-    tag = this._newTag();
+    tag = this._tag();
     tag.setData({
       tag_id: req.data.tag_id,
       by: req.current_user.user_id
@@ -266,16 +278,14 @@ AdminTagController.prototype.confirmDelete = function (req, res) {
   }
 };
 
-AdminTagController.prototype._newTag = function () {
-  var tag = new Tag();
-  tag.setTagData(this._tagData);
-  return tag;
-};
+AdminTagController.prototype._tag = function () {
+  return Tag(this._tagStore);
+}
 
-function newAdminTagController(view, tagData) {
+function newAdminTagController(view, tagStore) {
   var controller = new AdminTagController(boundMethods);
   controller.setView(view);
-  controller.setTagData(tagData);
+  controller.setTagStore(tagStore);
   return controller;
 }
 

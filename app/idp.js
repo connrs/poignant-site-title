@@ -5,13 +5,18 @@ var idp = {
   persona: require('idp-persona')
 };
 
-function initProviders(app, callback) {
-    var getProviders = "SELECT provider_id, name, client_id, client_secret, redirect_uri FROM provider WHERE deleted IS NULL";
+function init(app, callback) {
+  var getProviders = "SELECT provider_id, name, client_id, client_secret, redirect_uri FROM provider WHERE deleted IS NULL";
 
-    app.idp = {};
-    app.dbClient.query(getProviders, function (err, results) {
+  app.idp = {};
+  app.storeClient.client(function (err, query) {
+    if (err) {
+      callback(err);
+    }
+    else {
+      query(getProviders, [], function (err, results) {
         if (err) {
-            callback(err);
+          callback(err);
         }
         else {
           results.rows.forEach(function (providerData) {
@@ -30,7 +35,9 @@ function initProviders(app, callback) {
           });
           callback();
         }
-    });
+      });
+    }
+  });
 }
 
-module.exports = initProviders;
+module.exports = init;

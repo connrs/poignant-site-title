@@ -4,6 +4,10 @@ function Controller(boundMethods) {
   }
 }
 
+Controller.prototype.getRoutes = function () {
+  return this._routes || [];
+};
+
 Controller.prototype.setView = function (view) {
   this._view = view;
 };

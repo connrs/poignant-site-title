@@ -17,6 +17,16 @@ function filtersNotEmpty(filters) {
 
 function AdminSettingsController() {
   Controller.apply(this, arguments);
+  this._routes = [
+    ['get', '/admin/settings', this.index.bind(this)],
+    ['head', '/admin/settings', this.index.bind(this)],
+    ['get', '/admin/settings/reload',this.reload.bind(this)],
+    ['head', '/admin/settings/reload', this.reload.bind(this)],
+    ['post', '/admin/settings/reload', this.reloadPost.bind(this)],
+    ['get', '/admin/settings/general', this.general.bind(this)],
+    ['head', '/admin/settings/general', this.general.bind(this)],
+    ['post', '/admin/settings/general', this.generalPost.bind(this)]
+  ];
 }
 
 AdminSettingsController.prototype = Object.create(Controller.prototype, { constructor: AdminSettingsController });
