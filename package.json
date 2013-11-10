@@ -31,7 +31,6 @@
     "ftybr-add-to-res": "0.0.1",
     "ftybr-pg-session": "0.2.3",
     "pg-sugar": "0.0.2",
-    "iterate-files": "~0.1.1",
     "stream-to-hbs-partial": "0.0.2",
     "stream-to-precompiled-hbs": "0.0.3"
   },
