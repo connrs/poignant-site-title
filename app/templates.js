@@ -1,27 +1,44 @@
-var precompileTemplates = require('../lib/templates');
+var handlebars = require('handlebars');
+var stph = require('stream-to-precompiled-hbs');
+var sthp = require('stream-to-hbs-partial');
+var helpers = [
+  require('../lib/helper/handlebars/date.js'),
+  require('../lib/helper/handlebars/markdown.js'),
+  require('../lib/helper/handlebars/each_keys.js'),
+  require('../lib/helper/handlebars/blog.js'),
+  require('../lib/helper/handlebars/general.js')
+];
 
-function rebuildTemplates(app) {
-  precompileTemplates(app.config.root_address + '/templates/templates', app.config.root_address + '/templates/partials', { encoding: 'UTF-8' }, function (err, templates) {
-    if (err) {
-      app.events.emit('templates_refreshed', err);
-    }
-    else {
-      for (var t in templates) {
-        if (templates.hasOwnProperty(t)) {
-          app.templates[t] = templates[t];
-        }
-      }
-
+function rebuild(app) {
+  var templates;
+  var count = 2;
+  var done = function () {
+    if (--count === 0) {
       app.events.emit('templates_refreshed');
     }
+  };
+  var addToTemplates = function (data) {
+    app.templates[data[0]] = data[1];
+  };
+
+  sthp(handlebars, app.config.root_address + '/templates/partials', done);
+  templates = stph(handlebars, app.config.root_address + '/templates/templates');
+  templates.on('data', addToTemplates);
+  templates.on('end', done);
+}
+
+function initHelpers(app) {
+  helpers.forEach(function (helper) {
+    helper(handlebars);
   });
 }
 
-function initTemplates(app, callback) {
+function init(app, callback) {
+  initHelpers(app);
   app.templates = {};
-  app.events.on('templates_refresh', rebuildTemplates.bind(null, app));
+  app.events.on('templates_refresh', rebuild.bind(null, app));
   app.events.once('templates_refreshed', callback);
   app.events.emit('templates_refresh');
 }
 
-module.exports = initTemplates
+module.exports = init;

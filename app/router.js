@@ -2,10 +2,10 @@ var ftybr = require('ftybr');
 var formData = require('ftybr-parse-formdata');
 var addToReq = require('ftybr-add-to-req');
 var addToRes = require('ftybr-add-to-res');
-var redirect = require('../lib/ftybr-redirect');
-var hasPermission = require('../lib/ftybr-has-permission');
 var pgSession = require('ftybr-pg-session');
-var getUser = require('../lib/ftybr-get-user');
+var redirect = require('../lib/middleware/ftybr/redirect');
+var hasPermission = require('../lib/middleware/ftybr/has-permission');
+var getUser = require('../lib/middleware/ftybr/get-user');
 
 function init(app, done) {
   app.router = ftybr();
