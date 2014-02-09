@@ -32,7 +32,8 @@
     "ftybr-pg-session": "0.2.3",
     "pg-sugar": "0.0.2",
     "stream-to-hbs-partial": "0.0.2",
-    "stream-to-precompiled-hbs": "0.0.3"
+    "stream-to-precompiled-hbs": "0.0.3",
+    "http-view-stream": "0.0.1"
   },
   "devDependencies": {
     "grunt": "~0.4.1"

@@ -3,6 +3,7 @@ var Post = require('../../lib/model/post.js');
 var Tag = require('../../lib/model/tag.js');
 var newPostPath = 'new_post';
 var amendedPostPath = 'amended_post';
+var approvedPostPath = 'approved_post';
 var boundMethods = [
   'index','new','newPost','edit','editPost','approveDashboard','approve','approvePost','delete','confirmDelete'
 ];
@@ -423,10 +424,11 @@ AdminBlogController.prototype.approvePost = function (req, res) {
           return;
         }
 
+        this._publishApprovedPostNotification(req.params.post_id);
         req.session.set('flash_message', 'Your post has been approved', function (err) {
           res.redirect(req.config.admin_base_address + '/posts/approve', 302);
         });
-      });
+      }.bind(this));
     }
     else if (req.data.post_status_type_id === 4) {
       post.reject(function (err) {
@@ -580,6 +582,14 @@ AdminBlogController.prototype._publishNewPostNotification = function (post_id, b
   this._stompClient.publish('/queue/' + newPostPath, JSON.stringify({
     post_id: post_id,
     by: by
+  }), {
+    'content-type': 'application/json'
+  });
+};
+
+AdminBlogController.prototype._publishApprovedPostNotification = function (post_id) {
+  this._stompClient.publish('/queue/' + approvedPostPath, JSON.stringify({
+    post_id: post_id
   }), {
     'content-type': 'application/json'
   });

@@ -15,9 +15,9 @@
   </div>
   {{/if}}
   {{#if summary}}
-  <div class="p-summary post_summary">{{{markdown summary}}}</div>
+  <div class="p-summary post_summary" itemprop="description">{{{markdown summary}}}</div>
   {{/if}}
-  <div class="p-content" itemprop="description">{{#markdown_block}}
+  <div class="p-content" itemprop="text">{{#markdown_block}}
   {{{enhance_hashtags content tags}}}
   {{/markdown_block}}</div>
   {{#unless title}}

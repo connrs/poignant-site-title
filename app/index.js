@@ -1,6 +1,7 @@
 var app = {
   env: {
     softwareVersion: 1,
+    secret: process.env.SECRET,
     db: {
       host: process.env.DB_HOST,
       username: process.env.DB_USERNAME,

@@ -21,7 +21,7 @@ function init(app, done) {
     admin_blog: adminBlogController(newHTMLView(app.templates), app.store.post, app.store.tag, app.types, app.stomp),
     admin_tag: adminTagController(newHTMLView(app.templates), app.store.tag),
     admin_comment: adminCommentController(newHTMLView(app.templates), app.store.comment, app.types),
-    auth: authController(newHTMLView(app.templates), app.idp, app.store.user),
+    auth: authController(newHTMLView(app.templates), app.idp, app.store),
     account: accountController(newHTMLView(app.templates), app.store.user),
     error: errorController(newHTMLView(app.templates)),
     admin: adminController(newHTMLView(app.templates), app.store.postActivity),

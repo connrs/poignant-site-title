@@ -1,5 +1,6 @@
 var Controller = require('./core');
 var User = require('../../lib/model/user.js');
+var IdentityToken = require('../../lib/model/identity_token.js');
 var boundMethods = [
   'index',
   'authWith',
@@ -32,12 +33,8 @@ AuthController.prototype.setIDP = function (idp) {
   this._idp = idp;
 }
 
-AuthController.prototype.setUser = function (User) {
-  this._User = User;
-};
-
-AuthController.prototype.setUserStore = function (userStore) {
-  this._userStore = userStore;
+AuthController.prototype.setStore = function (store) {
+  this._store = store;
 };
 
 AuthController.prototype.index = function (req, res) {
@@ -52,8 +49,9 @@ AuthController.prototype.authWith = function (req, res) {
   };
 
   if (req.params.idp.toLowerCase() === 'google') {
-    params.scope = [ 'https://www.googleapis.com/auth/plus.login' ];
+    params.scope = [ 'https://www.googleapis.com/auth/plus.login',  ];
     params.access_type = 'offline';
+    params.request_visible_actions = 'http://schemas.google.com/AddActivity http://schemas.google.com/CommentActivity https://schemas.google.com/CreateActivity';
   }
 
   if (!req.params.idp || !this._idp[req.params.idp.toLowerCase()]) {
@@ -86,11 +84,23 @@ AuthController.prototype.google = function (req, res) {
           else {
             req.session.set('current_user_id', userData.user_id, function (err) {
               var user = this._user();
+              var idToken = this._identityToken();
               user.setData({
                 software_version_id: req.config.softwareVersion,
                 user_id: userData.user_id,
                 date: new Date()
               });
+              if (identity.refreshToken) {
+                idToken.setData({
+                  identity_id: userData.identity_id,
+                  identity_token_type_id: 2,
+                  token: identity.refreshToken,
+                  user_id: userData.user_id
+                });
+                idToken.save(function (err) {
+                  if (err) console.error(err);
+                });
+              }
               user.updateLastLogin(function (err) {
                 res.redirect('/', 302);
               });
@@ -220,14 +230,18 @@ AuthController.prototype.logout = function (req, res) {
 };
 
 AuthController.prototype._user = function () {
-  return new User(this._userStore);
+  return new User(this._store.user);
 }
 
-function newAuthController(view, idp, userStore) {
+AuthController.prototype._identityToken = function () {
+  return new IdentityToken(this._store.identityToken);
+};
+
+function newAuthController(view, idp, store) {
   var controller = new AuthController(boundMethods);
   controller.setView(view);
   controller.setIDP(idp);
-  controller.setUserStore(userStore);
+  controller.setStore(store);
   return controller;
 }
 
