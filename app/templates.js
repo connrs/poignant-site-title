@@ -14,7 +14,7 @@ function rebuild(app) {
   var count = 2;
   var done = function () {
     if (--count === 0) {
-      app.events.emit('templates_refreshed');
+      app.events.emit('~templates_refreshed');
     }
   };
   var addToTemplates = function (data) {
@@ -37,8 +37,8 @@ function init(app, callback) {
   initHelpers(app);
   app.templates = {};
   app.events.on('templates_refresh', rebuild.bind(null, app));
-  app.events.once('templates_refreshed', callback);
-  app.events.emit('templates_refresh');
+  app.events.once('~templates_refreshed', callback);
+  rebuild(app);
 }
 
 module.exports = init;

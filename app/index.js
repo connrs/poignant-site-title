@@ -15,9 +15,9 @@ var app = {
   }
 };
 var steps = [
+  require('./activemq.js'),
   require('./events.js'),
   require('./db.js'),
-  require('./activemq.js'),
   require('./types.js'),
   require('./stores.js'),
   require('./config.js'),

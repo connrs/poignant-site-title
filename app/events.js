@@ -1,11 +1,7 @@
-var EventEmitter = require('events').EventEmitter;
-
-function Events() {};
-
-Events.prototype = Object.create(EventEmitter.prototype, { constructor: Events });
+var StompEmitter = require('stomp-emitter');
 
 function initEvents (app, done) {
-  app.events = new Events();
+  app.events = new StompEmitter(app.stomp, process.pid);
   done();
 };
 

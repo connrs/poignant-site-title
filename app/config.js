@@ -13,7 +13,7 @@ function rebuildConfig(app) {
       var configure = newConfig(app.env);
 
       if (err) {
-        app.events.emit('config_refreshed', err);
+        app.events.emit('~config_refreshed', err);
         return;
       }
 
@@ -28,7 +28,7 @@ function rebuildConfig(app) {
         }
       }
 
-      app.events.emit('config_refreshed');
+      app.events.emit('~config_refreshed');
     });
   });
 }
@@ -36,8 +36,8 @@ function rebuildConfig(app) {
 function init(app, callback) {
   app.config = {};
   app.events.on('config_refresh', rebuildConfig.bind(null, app));
-  app.events.once('config_refreshed', callback);
-  app.events.emit('config_refresh');
+  app.events.once('~config_refreshed', callback);
+  rebuildConfig(app);
 }
 
 module.exports = init;
