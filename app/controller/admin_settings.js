@@ -1,7 +1,5 @@
 var Controller = require('./core');
-var boundMethods = [
-  'index','reloadPost','reload','general','generalPost'
-];
+var error = require('../../lib/error/index.js');
 
 function filtersNotEmpty(filters) {
   var f;
@@ -39,34 +37,33 @@ AdminSettingsController.prototype.setConfig = function (config) {
   this._config = config;
 };
 
-AdminSettingsController.prototype.beforeAction = function (callback, req, res) {
-  req.view.layout = 'admin';
-  callback(req, res);
+AdminSettingsController.prototype.index = function (obj, done) {
+  if (!obj.hasPermission(['su'])) { return done(new error.NotAuthorizedError()); }
+
+  var template = this._template(obj, 'admin');
+  var context = {
+    current_navigation: 'admin_settings_index',
+    page: { title: 'Settings dashboard' }
+  }
+
+  obj.output = template(context.current_navigation, context);
+  done(null, obj);
 };
 
-AdminSettingsController.prototype.index = function (req, res) {
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
+AdminSettingsController.prototype.general = function (obj, done) {
+  if (!obj.hasPermission(['su'])) { return done(new error.NotAuthorizedError()); }
+
+  var template = this._template(obj, 'admin');
+  var context = {
+    'current_navigation': 'admin_settings_general'
   }
 
-  req.view.template = 'admin_settings_index';
-  req.view.context.page = { title: 'Settings dashboard' };
-  this._view.render(req, res);
-};
-
-AdminSettingsController.prototype.general = function (req, res) {
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
+  if (obj.data.standing_data) {
+    obj.output = template(context.current_navigation, context);
+    return done(null, obj);
   }
 
-  if (req.view.context.standing_data) {
-    this._view.render(req, res);
-    return;
-  }
-
-  req.view.context.standing_data = {
+  context.standing_data = {
     'site_title': this._config.site_title,
     'base_address': this._config.base_address,
     'root_address': this._config.root_address,
@@ -74,17 +71,13 @@ AdminSettingsController.prototype.general = function (req, res) {
     'assets_base_address': this._config.assets_base_address,
     'assets_root_address': this._config.assets_root_address
   };
-
-  req.view.template = 'admin_settings_general';
-  req.view.context.page = { title: 'Standing data - Settings dashboard' };
-  this._view.render(req, res);
+  context.page = { title: 'Standing data - Settings dashboard' };
+  obj.output = template(context.current_navigation, context);
+  done(null, obj);
 };
 
-AdminSettingsController.prototype.generalPost = function (req, res) {
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
-  }
+AdminSettingsController.prototype.generalPost = function (obj, done) {
+  if (!obj.hasPermission(['su'])) { return done(new error.NotAuthorizedError()); }
 
 };
 
@@ -124,9 +117,8 @@ AdminSettingsController.prototype.reloadPost = function (req, res) {
   }
 };
 
-function newAdminSettingsController(view, events, config) {
-  var controller = new AdminSettingsController(boundMethods);
-  controller.setView(view);
+function newAdminSettingsController(events, config) {
+  var controller = new AdminSettingsController();
   controller.setEvents(events);
   controller.setConfig(config);
   return controller;

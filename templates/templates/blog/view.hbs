@@ -29,6 +29,16 @@
     <h1>Comments</h1>
     <p>When you register to leave a comment, no personal information, other than the name that you provide, will be displayed to visitors of the site.</p>
     <p>You may use Markdown to enhance your comments but please note that all comments are moderated before being published and I reserve the right to amend any comment to make it more suitable for layout or to remove any inappropriate language.</p>
+    {{#if formErrors}}
+    <div class="errors">
+      <p>There were errors submitting your comment.</p>
+      <ul>
+        {{#each formErrors}}
+        <li>{{.}}</li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
     {{#if current_user}}
     <div class="card">
       <form method="post" action="{{../config.base_address}}/posts/{{attrSafe ../post.slug}}">

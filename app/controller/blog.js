@@ -3,9 +3,7 @@ var Post = require('../../lib/model/post.js');
 var Tag = require('../../lib/model/tag.js');
 var Comment = require('../../lib/model/comment.js');
 var S = require('string');
-var boundMethods = [
-  'home', 'view', 'index', 'tag', 'tags', 'newCommentPost'
-];
+var error = require('../../lib/error/index.js');
 var commentPath = 'comment';
 
 function BlogController() {
@@ -47,66 +45,72 @@ BlogController.prototype.setStompClient = function (client) {
   this._stompClient = client;
 };
 
-BlogController.prototype.home = function (req, res) {
-  res.setHeader('Cache-control', 'no-cache,max-age=0');
+BlogController.prototype.home = function (obj, done) {
+  var template = this._template(obj, 'default');
+  obj.headers = {
+    'cache-control': 'no-cache,max-age=0'
+  };
   this._post().getLatest(3, function (err, posts) {
-    if (err) {
-      res.render500(err);
-    }
-    else {
-      req.view.template = 'blog_home';
-      req.view.context.posts = posts;
-      this._view.render(req, res);
-    }
+    if (err) { return done(err); }
+
+    obj.output = template('blog_home', {
+      posts: posts
+    });
+    done(null, obj);
   }.bind(this));
 }
 
-BlogController.prototype.index = function (req, res) {
+BlogController.prototype.index = function (obj, done) {
+  var template = this._template(obj, 'default');
   var limit = 20;
-  var page = req.params.page ? req.params.page : 1;
+  var page = obj.params.page ? obj.params.page : 1;
   var filters = {
     post_status_type_id: 3,
     limit: limit,
     page: page
   };
 
-  res.setHeader('Cache-control', 'no-cache,max-age=0');
+  obj.header = {
+    'cache-control': 'no-cache,max-age=0'
+  };
   this._post().find(filters, function (err, results) {
     if (err) {
-      res.render500(err);
+      done(err);
     }
     else if (Math.ceil(results.count / limit) < page) {
-      res.render404();
+      done(new error.NotFoundError());
     }
     else {
-      req.view.template = 'blog_index';
-      req.view.context.posts = results.posts;
-      req.view.context.pagination = {
-        url: req.config.base_address + '/archives',
-        perPage: limit,
-        page: page,
-        pages: Math.ceil(results.count / limit)
-      };
-      req.view.context.page = {
-        title: 'Archives'
-      };
-      this._view.render(req, res);
+      obj.output = template('blog_index', {
+        posts: results.posts,
+        pagination: {
+          url: obj.config.base_address + '/archives',
+          perPage: limit,
+          page: page,
+          pages: Math.ceil(results.count / limit)
+        },
+        page: {
+          title: 'Archives'
+        }
+      });
+      done(null, obj);
     }
   }.bind(this));
 }
 
-BlogController.prototype.tag = function (req, res) {
+BlogController.prototype.tag = function (obj, done) {
+  var template = this._template(obj, 'default');
   var limit = 10;
-  var start = req.params.page ? (req.params.page - 1) * limit : 0;
+  var start = obj.params.page ? (obj.params.page - 1) * limit : 0;
   var tag = this._tag();
   var post = this._post();
 
-  tag.findByName(req.params.name, function (err, tag) {
+  tag.findByName(obj.params.name, function (err, tag) {
     if (err) {
-      res.render500(err);
+      done(err);
     }
     else if (!tag || tag.post_count === 0) {
-      res.render404();
+      done(new error.NotFoundError());
     }
     else {
       var data = {
@@ -117,51 +121,57 @@ BlogController.prototype.tag = function (req, res) {
       };
       post.find(data, function (err, posts) {
         if (err) {
-          res.render500(err);
+          done(err);
         }
         else if (!posts.length) {
-          res.render400();
+          done(new error.BadRequestError())
         }
         else {
-          req.view.template = 'blog_tag';
-          req.view.context.page = {
-            title: tag.pretty_name || tag.name
-          };
-          req.view.context.pagination = {
-            url: req.config.base_address + '/tags/' + tag.name,
-            perPage: limit,
-            page: start + 1,
-            pages: Math.ceil(tag.post_count / limit)
-          };
-          req.view.context.posts = posts;
-          req.view.context.tag = tag;
-          this._view.render(req, res);
+          obj.output = template('blog_tag', {
+            page: {
+              title: tag.pretty_name || tag.name
+            },
+            pagination: {
+              url: obj.config.base_address + '/tags/' + tag.name,
+              perPage: limit,
+              page: start + 1,
+              pages: Math.ceil(tag.post_count / limit)
+            },
+            posts: posts,
+            tag: tag
+          });
+          done(null, obj);
         }
       }.bind(this));
     }
   }.bind(this));
 };
 
-BlogController.prototype.tags = function (req, res) {
+BlogController.prototype.tags = function (obj, done) {
+  var template = this._template(obj, 'default');
+
   this._tag().allWithPosts(function (err, tags) {
     if (err) {
-      res.render500(err);
+      done(err);
     }
     else {
-      req.view.template = 'blog_tags';
-      req.view.context.tags = tags;
-      req.view.context.page = {
-        title: 'Tags'
-      };
-      this._view.render(req, res);
+      obj.output = template('blog_tags', {
+        tags: tags,
+        page: {
+          title: 'Tags'
+        }
+      });
+      done(null, obj);
     }
   }.bind(this));
 };
 
-BlogController.prototype.view = function (req, res) {
-  this._post().getBySlug(req.params.slug, function (err, post) {
+BlogController.prototype.view = function (obj, done) {
+  var template = this._template(obj, 'default');
+
+  this._post().getBySlug(obj.params.slug, function (err, post) {
     if (err) {
-      res.render500(err);
+      done(err);
     }
     else {
       var comment = this._comment();
@@ -170,60 +180,62 @@ BlogController.prototype.view = function (req, res) {
       });
       comment.findPublished(function (err, comments) {
         if (err) {
-          res.render500(err);
+          done(err);
         }
         else {
-          req.view.template = 'blog_view';
-          req.view.context.post = post;
-          req.view.context.comments = comments;
-          req.view.context.page = {
-            title: post.title
-          };
-          this._view.render(req, res)
+          obj.output = template('blog_view', {
+            post: post,
+            comments: comments,
+            page: {
+              title: post.title
+            }
+          });
+          done(null, obj);
         }
       }.bind(this));
     }
   }.bind(this));
 };
 
-BlogController.prototype.newCommentPost = function (req, res) {
+BlogController.prototype.newCommentPost = function (obj, done) {
+  var template = this._template(obj, 'default');
   var comment;
 
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
+  if (!obj.current_user || !obj.current_user.role_id) {
+    obj.redirect('/', 302);
   }
-  else if (Object.keys(req.data).length === 0) {
-    req.view.errors = { general: 'No data submitted' };
-    this.new(req, res);
+  else if (Object.keys(obj.data).length === 0) {
+    obj.formErrors = { general: 'No data submitted' };
+    this.view(obj, done);
   }
-  else if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
+  else if (obj.data.csrf_token !== obj.session.uid()) {
+    done(new error.BadRequestError());
     return;
   }
   else {
-    req.data.by = req.current_user.user_id;
-    req.data.comment_type_id = 1;
+    obj.data.by = obj.current_user.user_id;
+    obj.data.comment_type_id = 1;
     comment = this._comment();
-    comment.setData(req.data);
+    comment.setData(obj.data);
     comment.validate(function (err, validationErrors) {
       if (err) {
-        res.render500(err);
+        done(err);
       }
       else if (validationErrors !== false) {
-        req.view.context.tag = req.data;
-        req.view.context.errors = validationErrors;
-        this.view(req, res);
+        obj.formErrors = validationErrors;
+        this.view(obj, done);
       }
       else {
-        req.data.content = S(req.data.content).stripTags().s;
+        obj.data.content = S(obj.data.content).stripTags().s;
         comment.save(function (err, comment_id) {
           if (err) {
-            res.render500(err);
+            done(err);
           }
           else {
-            this._publishCommentNotification(req.data.post_id, comment_id, req.data.by);
-            req.session.set('flash_message', 'Your comment has been submitted and will be reviewed.', function (err) {
-              this.view(req, res);
+            this._publishCommentNotification(obj.data.post_id, comment_id, obj.data.by);
+            obj.session.set('flash_message', 'Your comment has been submitted and will be reviewed.', function (err) {
+              obj.redirect(obj.req.url, 303);
+              //this.view(obj, done);
             }.bind(this));
           }
         }.bind(this));
@@ -254,9 +266,8 @@ BlogController.prototype._comment = function () {
   return Comment(this._commentStore);
 }
 
-function newBlogController(view, postStore, tagStore, commentStore, stompClient) {
-  var controller = new BlogController(boundMethods);
-  controller.setView(view);
+function newBlogController(postStore, tagStore, commentStore, stompClient) {
+  var controller = new BlogController();
   controller.setPostStore(postStore);
   controller.setTagStore(tagStore);
   controller.setCommentStore(commentStore);

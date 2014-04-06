@@ -1,14 +1,7 @@
 var Controller = require('./core');
 var User = require('../../lib/model/user.js');
 var IdentityToken = require('../../lib/model/identity_token.js');
-var boundMethods = [
-  'index',
-  'authWith',
-  'google',
-  'github',
-  'facebook',
-  'persona'
-];
+var error = require('../../lib/error/index.js');
 
 function AuthController() {
   Controller.apply(this, arguments);
@@ -37,56 +30,59 @@ AuthController.prototype.setStore = function (store) {
   this._store = store;
 };
 
-AuthController.prototype.index = function (req, res) {
-  req.view.template = 'auth_index';
-  req.view.context.page = { title: 'Sign in' };
-  this._view.render(req, res);
+AuthController.prototype.index = function (obj, done) {
+  var template = this._template(obj, 'default');
+  obj.output = template('auth_index', {
+    page: { title: 'Sign in' }
+  });
+  done(null, obj);
 };
 
-AuthController.prototype.authWith = function (req, res) {
+AuthController.prototype.authWith = function (obj, done) {
+  var template = this._template(obj, 'default');
   var params = {
-    state: req.session.uid()
+    state: obj.session.uid()
   };
 
-  if (req.params.idp.toLowerCase() === 'google') {
-    params.scope = [ 'https://www.googleapis.com/auth/plus.login',  ];
+  if (obj.params.idp.toLowerCase() === 'google') {
+    params.scope = [ 'https://www.googleapis.com/auth/plus.login' ];
     params.access_type = 'offline';
     params.request_visible_actions = 'http://schemas.google.com/AddActivity http://schemas.google.com/CommentActivity https://schemas.google.com/CreateActivity';
   }
 
-  if (!req.params.idp || !this._idp[req.params.idp.toLowerCase()]) {
-    res.render500();
+  if (!obj.params.idp || !this._idp[obj.params.idp.toLowerCase()]) {
+    done(new error.InternalServerError());
   }
   else {
-    res.redirect(this._idp[req.params.idp.toLowerCase()]().authUrl(params), 302);
+    obj.redirect(this._idp[obj.params.idp.toLowerCase()]().authUrl(params), 302);
   }
 };
 
-AuthController.prototype.google = function (req, res) {
-  if (req.data.state !== req.session.uid()) {
-    res.render400();
+AuthController.prototype.google = function (obj, done) {
+  if (obj.data.state !== obj.session.uid()) {
+    done(new error.NotFoundError());
   }
   else {
-    this._idp.google().identity(req.data.code, function (err, identity) {
+    this._idp.google().identity(obj.data.code, function (err, identity) {
       if (err) {
-        res.render500(err);
+        done(err);
       }
       else {
         this._user().findByIdentity(identity.id, 1, function (err, userData) {
           if (err) {
-            res.render500(err);
+            done(err);
           }
           else if (!userData) {
-            req.session.set('account_new', { identity: identity, provider_id: 1, primary_identity: true }, function (err) {
-              res.redirect('/account/new', 302);
+            obj.session.set('account_new', { identity: identity, provider_id: 1, primary_identity: true }, function (err) {
+              obj.redirect('/account/new', 302);
             });
           }
           else {
-            req.session.set('current_user_id', userData.user_id, function (err) {
+            obj.session.set('current_user_id', userData.user_id, function (err) {
               var user = this._user();
               var idToken = this._identityToken();
               user.setData({
-                software_version_id: req.config.softwareVersion,
+                software_version_id: obj.config.softwareVersion,
                 user_id: userData.user_id,
                 date: new Date()
               });
@@ -102,7 +98,7 @@ AuthController.prototype.google = function (req, res) {
                 });
               }
               user.updateLastLogin(function (err) {
-                res.redirect('/', 302);
+                obj.redirect('/', 302);
               });
             }.bind(this));
           }
@@ -112,35 +108,35 @@ AuthController.prototype.google = function (req, res) {
   }
 }
 
-AuthController.prototype.github = function (req, res) {
-  if (req.data.state !== req.session.uid()) {
-    res.render400();
+AuthController.prototype.github = function (obj, done) {
+  if (obj.data.state !== obj.session.uid()) {
+    done(new error.BadRequestError());
   }
   else {
-    this._idp.github().identity(req.data.code, function (err, identity) {
+    this._idp.github().identity(obj.data.code, function (err, identity) {
       if (err) {
-        res.render500(err);
+        done(err);
       }
       else {
         this._user().findByIdentity(identity.id, 2, function (err, userData) {
           if (err) {
-            res.render500(err);
+            done(err);
           }
           else if (!userData) {
-            req.session.set('account_new', { identity: identity, provider_id: 2, primary_identity: true }, function (err) {
-              res.redirect('/account/new', 302);
+            obj.session.set('account_new', { identity: identity, provider_id: 2, primary_identity: true }, function (err) {
+              obj.redirect('/account/new', 302);
             });
           }
           else {
-            req.session.set('current_user_id', userData.user_id, function (err) {
+            obj.session.set('current_user_id', userData.user_id, function (err) {
               var user = this._user();
               user.setData({
-                software_version_id: req.config.softwareVersion,
+                software_version_id: obj.config.softwareVersion,
                 user_id: userData.user_id,
                 date: new Date()
               });
               user.updateLastLogin(function (err) {
-                res.redirect('/', 302);
+                obj.redirect('/', 302);
               });
             }.bind(this));
           }
@@ -150,35 +146,35 @@ AuthController.prototype.github = function (req, res) {
   }
 };
 
-AuthController.prototype.facebook = function (req, res) {
-  if (req.data.state !== req.session.uid()) {
-    res.render400();
+AuthController.prototype.facebook = function (obj, done) {
+  if (obj.data.state !== obj.session.uid()) {
+    done(new error.BadRequestError());
   }
   else {
-    this._idp.facebook().identity(req.data.code, function (err, identity) {
+    this._idp.facebook().identity(obj.data.code, function (err, identity) {
       if (err) {
-        res.render500(err);
+        done(err);
       }
       else {
         this._user().findByIdentity(identity.id, 3, function (err, userData) {
           if (err) {
-            res.render500(err);
+            done(err);
           }
           else if (!userData) {
-            req.session.set('account_new', { identity: identity, provider_id: 3, primary_identity: true }, function (err) {
-              res.redirect('/account/new', 302);
+            obj.session.set('account_new', { identity: identity, provider_id: 3, primary_identity: true }, function (err) {
+              obj.redirect('/account/new', 302);
             });
           }
           else {
-            req.session.set('current_user_id', userData.user_id, function (err) {
+            obj.session.set('current_user_id', userData.user_id, function (err) {
               var user = this._user();
               user.setData({
-                software_version_id: req.config.softwareVersion,
+                software_version_id: obj.config.softwareVersion,
                 user_id: userData.user_id,
                 date: new Date()
               });
               user.updateLastLogin(function (err) {
-                res.redirect('/', 302);
+                obj.redirect('/', 302);
               });
             }.bind(this));
           }
@@ -188,33 +184,39 @@ AuthController.prototype.facebook = function (req, res) {
   }
 };
 
-AuthController.prototype.persona = function (req, res) {
-  this._idp.persona().identity(req.data.assertion, function (err, identity) {
+AuthController.prototype.persona = function (obj, done) {
+  this._idp.persona().identity(obj.data.assertion, function (err, identity) {
     if (err) {
-      res.render500(err);
+      done(err);
     }
     else {
       this._user().findByIdentity(identity.id, 4, function (err, userData) {
         if (err) {
-          res.render500(err);
+          done(err);
         }
         else if (!userData) {
-          req.session.set('account_new', { identity: identity, provider_id: 4, primary_identity: true }, function (err) {
-            res.setHeader('content-type', 'application/json; charset=UTF-8');
-            res.end(JSON.stringify('/account/new'));
+          obj.session.set('account_new', { identity: identity, provider_id: 4, primary_identity: true }, function (err) {
+            obj.headers = {
+              'content-type': 'application/json; charset=UTF-8'
+            };
+            obj.output = JSON.stringify('/account/new');
+            done(null, obj);
           });
         }
         else {
-          req.session.set('current_user_id', userData.user_id, function (err) {
+          obj.session.set('current_user_id', userData.user_id, function (err) {
             var user = this._user();
             user.setData({
-              software_version_id: req.config.softwareVersion,
+              software_version_id: obj.config.softwareVersion,
               user_id: userData.user_id,
               date: new Date()
             });
             user.updateLastLogin(function (err) {
-              res.setHeader('content-type', 'application/json; charset=UTF-8');
-              res.end(JSON.stringify('/'));
+              obj.headers = {
+                'content-type': 'application/json; charset=UTF-8'
+              };
+              obj.output = JSON.stringify('/');
+              done(null, obj);
             });
           }.bind(this));
         }
@@ -223,9 +225,9 @@ AuthController.prototype.persona = function (req, res) {
   }.bind(this));
 };
 
-AuthController.prototype.logout = function (req, res) {
-  req.session.remove(function (err) {
-    res.redirect('/', 302);
+AuthController.prototype.logout = function (obj, done) {
+  obj.session.remove(function (err) {
+    obj.redirect('/', 302);
   });
 };
 
@@ -237,9 +239,8 @@ AuthController.prototype._identityToken = function () {
   return new IdentityToken(this._store.identityToken);
 };
 
-function newAuthController(view, idp, store) {
-  var controller = new AuthController(boundMethods);
-  controller.setView(view);
+function newAuthController(idp, store) {
+  var controller = new AuthController();
   controller.setIDP(idp);
   controller.setStore(store);
   return controller;

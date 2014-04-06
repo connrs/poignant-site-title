@@ -1,7 +1,5 @@
 var Controller = require('./core');
-var boundMethods = [
-  'index'
-];
+var error = require('../../lib/error/index.js');
 
 function AdminController() {
   Controller.apply(this, arguments);
@@ -17,41 +15,32 @@ AdminController.prototype.setPostActivityStore = function (postActivityStore) {
   this._postActivityStore = postActivityStore;
 };
 
-AdminController.prototype.beforeAction = function (callback, req, res) {
-  req.view.layout = 'admin';
-  callback(req, res);
-};
-
-AdminController.prototype.index = function (req, res) {
-  if (!req.hasPermission()) {
-    res.render403();
-    return;
-  }
+AdminController.prototype.index = function (obj, done) {
+  if (!obj.hasPermission()) { return done(new error.NotAuthorizedError()); }
 
   var count = 1;
-
-  req.view.template = 'admin_index';
+  var template = this._template(obj, 'admin');
+  var context = {
+    'current_navigation': 'admin_index'
+  }
 
   function render() {
     if (--count === 0) {
-      this._view.render(req, res);
+      done(null, obj);
     }
   }
 
   this._postActivityStore.getActivity(function (err, postActivity) {
-    if (err) {
-      res.render500(err);
-    }
-    else {
-      req.view.context.post_activity = postActivity;
-      render.apply(this);
-    }
+    if (err) { return done(err); }
+
+    context.post_activity = postActivity;
+    obj.output = template(context.current_navigation, context);
+    done(null, obj);
   }.bind(this));
 };
 
-function newAdminController(view, postActivityStore) {
-  var controller = new AdminController(boundMethods);
-  controller.setView(view);
+function newAdminController(postActivityStore) {
+  var controller = new AdminController();
   controller.setPostActivityStore(postActivityStore);
   return controller;
 }

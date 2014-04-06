@@ -10,20 +10,12 @@ To create your router object:
 
     var router = require('ftybr')();
 
-Once you've instantiated it, you may add middleware in the connect pattern:
-
-    router.registerMiddleware(function (req, res, done) {
-      // Middleware logic
-    });
-
 You'll also need to add some routes. To add routes, you'll need to register a controller. Controllers are objects, of some form, that must have a .getRoutes() method. This method returns a multi-dimensional array that is used to build the routes.
 
     router.registerController({
       getRoutes: function () [
-        [ 'get', '/', function (req, res) { res.end('woo'); } ]
+        [ 'get', '/', function (obj, done) { done(null, { output: 'WOO' }); } ]
       ]
     });
 
-Once you've done this, you can then use it as a requestListener within your http server:
-
-    http.createServer(router.requestListener()).listen(8000);
+Once you've done this, you can then use it as a part of a stream within your requestListener function. See the barnacle-mode module on npm for an idea of how this would work. The idea is that you pipe in an object that contains req as a key and then it pipes onwards to a final stream that then pipes through to res.

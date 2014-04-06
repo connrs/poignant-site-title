@@ -1,8 +1,6 @@
 var Controller = require('./core');
 var Comment = require('../../lib/model/comment.js');
-var boundMethods = [
-  'index','approve','approvePost','delete','confirmDelete'
-];
+var error = require('../../lib/error/index.js');
 
 function filtersNotEmpty(filters) {
   var f;
@@ -39,189 +37,175 @@ AdminCommentController.prototype.setCommentStore = function (commentStore) {
   this._commentStore = commentStore;
 };
 
-AdminCommentController.prototype.beforeAction = function (callback, req, res) {
-  req.view.layout = 'admin';
-  callback(req, res);
-};
-
-AdminCommentController.prototype.index = function (req, res) {
+AdminCommentController.prototype.index = function (obj, done) {
   var limit = 10;
-  var page = req.data.page ? req.data.page : 1;
+  var page = obj.data.page ? obj.data.page : 1;
   var filters;
   var comment = this._comment();
+  var template = this._template(obj, 'admin');
+  var context = {
+    'current_navigation': 'admin_comments_index'
+  };
 
-  if (!req.hasPermission(['su', 'editor'])) {
+  if (!obj.hasPermission(['su', 'editor'])) {
     res.render403();
     return;
   }
 
-  req.view.template = 'admin_comments_index';
-  req.view.context.filters = {
+  context.filters = {
     limit: limit,
     page: page
   };
-  req.view.context.types = {
+  context.types = {
     commentStatus: this._types.commentStatus.filter(function (t) { return [1,2].indexOf(t.id) !== -1; })
   };
-  req.view.context.page = { title: 'Comments dashboard' };
+  context.page = { title: 'Comments dashboard' };
 
-  if (req.data.clear !== undefined) {
-    req.session.set('admin_comments_index', {}, function (err) {
-      req.view.context.filters = {
+  if (obj.data.clear !== undefined) {
+    obj.session.set('admin_comments_index', {}, function (err) {
+      context.filters = {
         limit: limit,
         page: page
       };
 
-      if (filtersNotEmpty(req.view.context.filters)) {
-        comment.find(req.view.context.filters, function (err, results) {
-          req.view.context.comments = results.comments;
-          req.view.context.pagination = {
+      if (filtersNotEmpty(context.filters)) {
+        comment.find(context.filters, function (err, results) {
+          context.comments = results.comments;
+          context.pagination = {
             perPage: limit,
             page: page,
             pages: Math.ceil(results.count / limit)
           };
-          this._view.render(req, res);
+          obj.output = template(context.current_navigation, context);
+          done(null, obj);
         }.bind(this));
       }
       else {
-        this._view.render(req, res);
+        obj.output = template(context.current_navigation, context);
+        done(null, obj);
       }
     }.bind(this));
   }
-  else if (Object.keys(req.data).length) {
-    req.session.set('admin_comments_index', req.data, function (err) {
-      req.view.context.filters = req.data;
-      req.view.context.filters.page = page;
-      req.view.context.filters.limit = limit;
-      if (filtersNotEmpty(req.view.context.filters)) {
-        comment.find(req.view.context.filters, function (err, results) {
-          req.view.context.comments = results.comments;
-          req.view.context.pagination = {
+  else if (Object.keys(obj.data).length) {
+    obj.session.set('admin_comments_index', obj.data, function (err) {
+      context.filters = obj.data;
+      context.filters.page = page;
+      context.filters.limit = limit;
+      if (filtersNotEmpty(context.filters)) {
+        comment.find(context.filters, function (err, results) {
+          context.comments = results.comments;
+          context.pagination = {
             perPage: limit,
             page: page,
             pages: Math.ceil(results.count / limit)
           };
-          this._view.render(req, res);
+          obj.output = template(context.current_navigation, context);
+          done(null, obj);
         }.bind(this));
       }
       else {
-        this._view.render(req, res);
+        obj.output = template(context.current_navigation, context);
+        done(null, obj);
       }
     }.bind(this));
   }
   else {
-    req.view.context.filters = req.session.get('admin_comments_index') || {};
-    req.view.context.filters.page = page;
-    req.view.context.filters.limit = limit;
-    if (filtersNotEmpty(req.view.context.filters)) {
-      comment.find(req.view.context.filters, function (err, results) {
-        if (err) {
-          res.render500(err);
-          return;
-        }
+    context.filters = obj.session.get('admin_comments_index') || {};
+    context.filters.page = page;
+    context.filters.limit = limit;
+    if (filtersNotEmpty(context.filters)) {
+      comment.find(context.filters, function (err, results) {
+        if (err) { return done(err); }
 
-        req.view.context.comments = results.comments;
-        req.view.context.pagination = {
+        context.comments = results.comments;
+        context.pagination = {
           perPage: limit,
           page: page,
           pages: Math.ceil(results.count / limit)
         };
-        this._view.render(req, res);
+        obj.output = template(context.current_navigation, context);
+        done(null, obj);
       }.bind(this));
     }
     else {
-      this._view.render(req, res);
+      obj.output = template(context.current_navigation, context);
+      done(null, obj);
     }
   }
 };
 
-AdminCommentController.prototype.approve = function (req, res) {
-  if (!req.hasPermission(['su', 'editor'])) {
-    res.render403();
-    return;
+AdminCommentController.prototype.approve = function (obj, done) {
+  if (!obj.hasPermission(['su', 'editor'])) { return done(error.NotAuthorizedError()); }
+
+  var template = this._template(obj, 'admin');
+  var context = {
+    'current_navigation': 'admin_comments_approve'
   }
 
-  req.view.template = 'admin_comments_approve';
-  this._comment().findById(req.params.comment_id, function (err, comment) {
+  this._comment().findById(obj.params.comment_id, function (err, comment) {
     if (err) {
-      res.render500(err);
+      done(err);
     }
     else if (!comment) {
-      res.render404();
+      done(new error.NotFoundError());
     }
     else if (comment.comment_status_type_id !== 1) {
-      res.render400(JSON.stringify(comment));
+      done(new error.BadRequestError(JSON.stringify(comment)));
     }
     else {
-      req.view.context.comment = comment;
-      req.view.context.page = { title: 'Approve comment' };
-      this._view.render(req, res);
+      context.comment = comment;
+      context.page = { title: 'Approve comment' };
+      obj.output = template(context.current_navigation, context);
+      done(null, obj);
     }
   }.bind(this));
 };
 
-AdminCommentController.prototype.approvePost = function (req, res) {
-  if (!req.hasPermission(['su', 'editor'])) {
-    res.render403();
-    return;
-  }
+AdminCommentController.prototype.approvePost = function (obj, done) {
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
 
-  if (!Object.keys(req.data).length || req.data.comment_status_type_id === undefined) {
-    res.render400();
-    return;
-  }
+  if (!Object.keys(obj.data).length || obj.data.comment_status_type_id === undefined) { return done(new error.BadRequestError()); }
 
-  if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-    return;
-  }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
 
   var comment = this._comment();
-  comment.setData({comment_id: req.params.comment_id, by: req.current_user.user_id, content: req.data.content});
-  req.data.comment_status_type_id = +req.data.comment_status_type_id;
+  comment.setData({comment_id: obj.params.comment_id, by: obj.current_user.user_id, content: obj.data.content});
+  obj.data.comment_status_type_id = +obj.data.comment_status_type_id;
 
-  comment.findById(req.params.comment_id, function (err, commentData) {
-    if (err) {
-      res.render500(err);
-      return;
-    }
+  comment.findById(obj.params.comment_id, function (err, commentData) {
+    if (err) { return done(err); }
 
-    if (!commentData || commentData.comment_status_type_id !== 1) {
-      res.render400();
-      return;
-    }
+    if (!commentData || commentData.comment_status_type_id !== 1) { return done(new error.BadRequestError()); }
 
-    if (req.data.comment_status_type_id === 2) {
+    if (obj.data.comment_status_type_id === 2) {
       comment.hasChanged(function (err, changed) {
         if (err) {
-          res.render500();
+          done(err);
         }
         else if (!changed) {
           comment.approve(function (err) {
             if (err) {
-              res.render500(err);
-              return;
+              return done(err);
             }
 
-            req.session.set('flash_message', 'Your comment has been approved', function (err) {
-              res.redirect(req.config.admin_base_address + '/comments', 302);
+            obj.session.set('flash_message', 'Your comment has been approved', function (err) {
+              obj.redirect(obj.config.admin_base_address + '/comments', 302);
             });
           }.bind(this));
         }
         else {
           comment.save(function (err) {
             if (err) {
-              res.render500(err);
+              done(err);
             }
             else {
               comment.approve(function (err) {
                 if (err) {
-                  res.render500(err);
-                  return;
+                  return done(err);
                 }
 
-                req.session.set('flash_message', 'Your comment has been approved', function (err) {
-                  res.redirect(req.config.admin_base_address + '/comments', 302);
+                obj.session.set('flash_message', 'Your comment has been approved', function (err) {
+                  obj.redirect(obj.config.admin_base_address + '/comments', 302);
                 });
               }.bind(this));
             }
@@ -229,79 +213,69 @@ AdminCommentController.prototype.approvePost = function (req, res) {
         }
       }.bind(this));
     }
-    else if (req.data.comment_status_type_id === 3) {
+    else if (obj.data.comment_status_type_id === 3) {
       comment.decline(function (err) {
-        if (err) {
-          res.render500(err);
-          return;
-        }
+        if (err) { return done(err); }
 
-        req.session.set('flash_message', 'Your comment has been declined', function (err) {
-          res.redirect(req.config.admin_base_address + '/comments', 302);
+        obj.session.set('flash_message', 'Your comment has been declined', function (err) {
+          obj.redirect(obj.config.admin_base_address + '/comments', 302);
         });
       });
     }
     else {
-      res.render400();
+      done(new error.BadRequestError());
     }
   }.bind(this));
 };
 
-AdminCommentController.prototype.delete = function (req, res) {
-  if (!req.hasPermission(['su', 'editor'])) {
-    res.render403();
+AdminCommentController.prototype.delete = function (obj, done) {
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+
+  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
+
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+
+  var template = this._template(obj, 'admin');
+  var context = {
+    current_navigation: 'admin_comments_delete'
   }
-  else if (Object.keys(req.data).length === 0) {
-    res.render400();
-  }
-  else if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-  }
-  else {
-    req.view.template = 'admin_comments_delete';
-    req.view.context.comment_ids = req.data.comment_id;
-    this._view.render(req, res);
-  }
+
+  context.comment_ids = obj.data.comment_id;
+  obj.output = template(context.current_navigation, context);
+  done(null, obj);
 };
 
-AdminCommentController.prototype.confirmDelete = function (req, res) {
-  var comment;
+AdminCommentController.prototype.confirmDelete = function (obj, done) {
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
 
-  if (!req.hasPermission(['su', 'editor'])) {
-    res.render403();
-  }
-  else if (!Array.isArray(req.data.comment_id) || req.data.comment_id.length === 0) {
-    res.render400();
-  }
-  else if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-  }
-  else {
-    comment = this._comment();
-    comment.setData({
-      comment_id: req.data.comment_id,
-      by: req.current_user.user_id
-    });
-    comment.delete(function (err) {
-      if (err) {
-        res.render500(err);
-      }
-      else {
-        req.session.set('flash_message', 'The comments have been deleted.', function (err) {
-          res.redirect(req.config.admin_base_address + '/comments', 302);
-        });
-      }
-    });
-  }
+  if (!Array.isArray(obj.data.comment_id) || obj.data.comment_id.length === 0) { return done(new error.BadRequestError()); }
+
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+
+  var comment = this._comment();
+
+  comment.setData({
+    comment_id: obj.data.comment_id,
+    by: obj.current_user.user_id
+  });
+  comment.delete(function (err) {
+    if (err) {
+      done(err);
+    }
+    else {
+      obj.session.set('flash_message', 'The comments have been deleted.', function (err) {
+        obj.redirect(obj.config.admin_base_address + '/comments', 302);
+      });
+    }
+  });
 };
 
 AdminCommentController.prototype._comment = function () {
   return Comment(this._commentStore);
 }
 
-function newAdminCommentController(view, commentStore, types) {
-  var controller = new AdminCommentController(boundMethods);
-  controller.setView(view);
+function newAdminCommentController(commentStore, types) {
+  var controller = new AdminCommentController();
   controller.setCommentStore(commentStore);
   controller.setTypes(types);
   return controller;

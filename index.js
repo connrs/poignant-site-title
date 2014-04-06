@@ -21,12 +21,11 @@ else {
     var requestHandler;
 
     if (err) {
-      console.error(err);
       cluster.worker.disconnect();
-      return;
+      return console.error(err);
     }
 
-    requestHandler = app.router.requestListener();
+    requestHandler = app.requestListener;
     server = http.createServer(function (req, res) {
       var d = require('domain').create();
 
@@ -69,6 +68,24 @@ else {
         requestHandler(req, res);
       });
     });
+
+    app.events.once('refresh_application', function () {
+        // make sure we close down within 30 seconds
+        var killtimer = setTimeout(function() {
+          process.exit(1);
+        }, 30000);
+        // But don't keep the process open just for that!
+        killtimer.unref();
+
+        // stop taking new requests.
+        server.close();
+
+        // Let the master know we're dead.  This will trigger a
+        // 'disconnect' in the cluster master, and then it will fork
+        // a new worker.
+        cluster.worker.disconnect();
+    });
+
     server.listen(8106);
   });
 }

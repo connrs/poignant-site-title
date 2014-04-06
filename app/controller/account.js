@@ -1,8 +1,5 @@
 var Controller = require('./core');
 var User = require('../../lib/model/user.js');
-var boundMethods = [
-  'new', 'postNew'
-];
 
 function AccountController() {
   Controller.apply(this, arguments);
@@ -19,30 +16,35 @@ AccountController.prototype.setUserStore = function (userStore) {
   this._userStore = userStore;
 }
 
-AccountController.prototype.new = function (req, res) {
-  if (!req.session.get('account_new')) {
-    req.session.remove();
-    res.redirect('/', 302);
+AccountController.prototype.new = function (obj, done) {
+  if (!obj.session.get('account_new')) {
+    obj.session.remove();
+    obj.redirect('/', 302);
   }
   else {
-    req.view.template = 'account_new';
-    this._view.render(req, res);
+    var template = this._template(obj, 'default');
+    var context = {
+      current_navigation: 'account_new'
+    };
+
+    obj.output = template(context.current_navigation, context);
+    done(null, obj);
   }
 }
 
-AccountController.prototype.postNew = function (req, res) {
+AccountController.prototype.postNew = function (obj, done) {
   var user;
   var accountNew;
 
-  if (!req.session.get('account_new')) {
-    req.session.remove();
-    res.redirect('/', 302);
+  if (!obj.session.get('account_new')) {
+    obj.session.remove();
+    obj.redirect('/', 302);
   }
   else {
-    accountNew = req.session.get('account_new');
+    accountNew = obj.session.get('account_new');
     user = this._user();
     user.setData({
-      name: req.data.name,
+      name: obj.data.name,
       email: accountNew.identity.email,
       url: accountNew.identity.url,
       provider_id: accountNew.provider_id,
@@ -52,20 +54,23 @@ AccountController.prototype.postNew = function (req, res) {
     });
     user.validate(function (err, errors) {
       if (err) {
-        res.render500(err);
+        done(err);
       }
       else if (errors) {
-        req.view.context.errors = req.session.get('account_new_errors');
-        this.new();
+        obj.formErrors = errors;
+        this.new(obj, done);
       }
       else {
         user.save(function (err, id) {
           if (err) {
-            res.render500(err);
+            done(err);
           }
           else {
-            req.session.set('current_user_id', id);
-            res.redirect('/', 302);
+            obj.session.set('current_user_id', id, function (err) {
+              if (err) { return done(err); }
+
+              obj.redirect('/', 302);
+            });
           }
         });
       }
@@ -77,9 +82,8 @@ AccountController.prototype._user = function () {
   return new User(this._userStore);
 }
 
-function newAccountController(view, userStore) {
-  var controller = new AccountController(boundMethods);
-  controller.setView(view);
+function newAccountController(userStore) {
+  var controller = new AccountController();
   controller.setUserStore(userStore);
   return controller;
 }

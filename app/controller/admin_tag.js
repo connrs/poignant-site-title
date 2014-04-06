@@ -1,8 +1,6 @@
 var Controller = require('./core');
 var Tag = require('../../lib/model/tag.js');
-var boundMethods = [
-  'index', 'edit', 'editPost', 'new', 'newPost', 'delete', 'confirmDelete'
-];
+var error = require('../../lib/error/index.js');
 
 function filtersNotEmpty(filters) {
   var f;
@@ -21,9 +19,6 @@ function AdminTagController() {
   this._routes = [
     ['all', '/admin/tags', this.index.bind(this)],
     ['head', '/admin/tags', this.index.bind(this)],
-    ['get', '/admin/tags/new', this.new.bind(this)],
-    ['head', '/admin/tags/new', this.new.bind(this)],
-    ['post', '/admin/tags/new', this.newPost.bind(this)],
     ['get', '/admin/tags/edit/:tag_id', this.edit.bind(this)],
     ['head', '/admin/tags/edit/:tag_id', this.edit.bind(this)],
     ['post', '/admin/tags/edit/:tag_id', this.editPost.bind(this)],
@@ -38,253 +33,167 @@ AdminTagController.prototype.setTagStore = function (tagStore) {
   this._tagStore = tagStore;
 };
 
-AdminTagController.prototype.beforeAction = function (callback, req, res) {
-  req.view.layout = 'admin';
-  callback(req, res);
-};
-
-AdminTagController.prototype.index = function (req, res) {
+AdminTagController.prototype.index = function (obj, done) {
   var filters;
   var tag = this._tag();
-
-  res.setHeader('Cache-Control', 'no-cache');
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
+  var template = this._template(obj, 'admin');
+  var context = {
+    'current_navigation': 'admin_tags_index'
   }
 
-  req.view.template = 'admin_tags_index';
-  req.view.context.filters = {};
-  req.view.context.page = { title: 'Tags dashboard' };
+  obj.headers = {
+    'cache-control': 'no-cache'
+  };
 
-  if (req.data.clear !== undefined) {
-    req.session.set('admin_tags_index', {}, function (err) {
+  if (!obj.current_user || !obj.current_user.role_id) { return obj.redirect('/', 302); }
+
+  context.filters = {};
+  context.page = { title: 'Tags dashboard' };
+
+  if (obj.data.clear !== undefined) {
+    obj.session.set('admin_tags_index', {}, function (err) {
       tag.find({}, function (err, tags) {
-        req.view.context.tags = tags;
-        this._view.render(req, res);
+        context.tags = tags;
+        obj.output = template(context.current_navigation, context);
+        done(null, obj);
       }.bind(this));
     }.bind(this));
   }
-  else if (Object.keys(req.data).length) {
-    req.session.set('admin_tags_index', req.data, function (err) {
-      req.view.context.filters.name = req.data.name;
-      tag.find(req.view.context.filters, function (err, tags) {
-        req.view.context.tags = tags;
-        this._view.render(req, res);
+  else if (Object.keys(obj.data).length) {
+    obj.session.set('admin_tags_index', obj.data, function (err) {
+      context.filters.name = obj.data.name;
+      tag.find(context.filters, function (err, tags) {
+        context.tags = tags;
+        obj.output = template(context.current_navigation, context);
+        done(null, obj);
       }.bind(this));
     }.bind(this));
   }
   else {
-    req.view.context.filters = req.session.get('admin_tags_index') || {};
-    tag.find(req.view.context.filters, function (err, tags) {
-      req.view.context.tags = tags;
-      this._view.render(req, res);
+    context.filters = obj.session.get('admin_tags_index') || {};
+    tag.find(context.filters, function (err, tags) {
+      context.tags = tags;
+      obj.output = template(context.current_navigation, context);
+      done(null, obj);
     }.bind(this));
   }
 };
 
-AdminTagController.prototype.edit = function (req, res) {
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
+AdminTagController.prototype.edit = function (obj, done) {
+  if (!obj.current_user || !obj.current_user.role_id) { return obj.redirect('/', 302); }
+
+  var template = this._template(obj, 'admin');
+  var context = {
+    'current_navigation': 'admin_tags_edit'
   }
 
-  req.view.template = 'admin_tags_edit';
-
-  if (req.view.context.tag) {
-    this._view.render(req, res);
-    return;
+  if (obj.data.tag) {
+    context.tag = obj.data.tag;
+    obj.output = template(context.current_navigation, context);
+    return done(null, obj);
   }
 
-  this._tag().find({ tag_id: req.params.tag_id }, function (err, tag) {
-    if (err) {
-      res.render500(err);
-    }
-    else {
-      req.view.context.tag = tag;
-      req.view.context.page = { title: 'Edit tag - ' + tag.name };
-      this._view.render(req, res);
-    }
+  this._tag().find({ tag_id: obj.params.tag_id }, function (err, tag) {
+    if (err) { return done(err); }
+
+    context.tag = tag;
+    context.page = { title: 'Edit tag - ' + tag.name };
+    obj.output = template(context.current_navigation, context);
+    done(null, obj);
   }.bind(this));
 };
 
-AdminTagController.prototype.editPost = function (req, res) {
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
-  }
+AdminTagController.prototype.editPost = function (obj, done) {
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
 
-  if (Object.keys(req.data).length === 0) {
-    res.redirect(req.config.admin_base_address + '/tags/edit' + req.params.tag_id, 302);
-    return;
-  }
+  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
 
-  if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-    return;
-  }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
 
   var tag = this._tag();
-  req.data.by = req.current_user.user_id;
-  tag.setData(req.data);
 
-  tag.findById(req.data.tag_id, function (err, tagData) {
-    if (err) {
-      res.render500(err);
-      return;
-    }
+  obj.data.by = obj.current_user.user_id;
+  tag.setData(obj.data);
 
-    req.data.name = tagData.name;
-    tag.setData(req.data);
+  tag.findById(obj.data.tag_id, function (err, tagData) {
+    if (err) { return done(err); }
+
+    if (!tagData) { return done(new error.BadRequestError()); }
+
+    obj.data.name = tagData.name;
+    tag.setData(obj.data);
     tag.hasChanged(function (err, changed) {
-      if (err) {
-        res.render500(err);
-      }
-      else if (!changed) {
-        res.redirect(req.config.admin_base_address + '/tags', 302);
-      }
-      else {
-        tag.validate(function (err, validationErrors) {
-          if (err) {
-            res.render500(err);
-          }
-          else if (validationErrors !== false) {
-            req.view.context.tag = req.data;
-            req.view.context.errors = validationErrors;
-            this.edit(req, res);
-          }
-          else {
-            tag.save(function (err) {
-              if (err) {
-                res.render500(err);
-              }
-              else {
-                req.session.set('flash_message', 'Your tag has been updated.', function (err) {
-                  res.redirect(req.config.admin_base_address + '/tags', 302);
-                });
-              }
+      if (err) { return done(err); }
+
+      if (!changed) { return obj.redirect(obj.config.admin_base_address + '/tags', 302); }
+
+      tag.validate(function (err, validationErrors) {
+        if (err) { return done(err); }
+
+        if (validationErrors !== false) {
+          obj.data.tag = obj.data;
+          obj.formErrors = validationErrors;
+          this.edit(obj, done);
+        }
+        else {
+          tag.save(function (err) {
+            if (err) { return done(err); }
+
+            obj.session.set('flash_message', 'Your tag has been updated.', function (err) {
+              obj.redirect(obj.config.admin_base_address + '/tags', 302);
             });
-          }
-        }.bind(this));
-      }
+          });
+        }
+      }.bind(this));
     }.bind(this))
   }.bind(this));
 };
 
-AdminTagController.prototype.new = function (req, res) {
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
-  }
+AdminTagController.prototype.delete = function (obj, done) {
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
 
-  req.view.template = 'admin_tags_new';
-  req.view.context.page = { title: 'New tag' };
-  this._view.render(req, res);
+  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
+
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+
+  var template = this._template(obj, 'admin');
+  var context = {
+    'current_navigation': 'admin_tags_delete'
+  };
+
+  context.tag_ids = obj.data.tag_id;
+  obj.output = template(context.current_navigation, context);
+  done(null, obj);
 };
 
-AdminTagController.prototype.newPost = function (req, res) {
-  var tag;
+AdminTagController.prototype.confirmDelete = function (obj, done) {
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
 
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-  }
-  else if (Object.keys(req.data).length === 0) {
-    req.view.errors = { general: 'No data submitted' };
-    this.new(req, res);
-  }
-  else if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-    return;
-  }
-  else {
-    req.data.by = req.current_user.user_id;
-    tag = this._tag();
-    tag.setData(req.data);
-    tag.validate(function (err, validationErrors) {
-      if (err) {
-        res.render500(err);
-      }
-      else if (validationErrors !== false) {
-        req.view.context.tag = req.data;
-        req.view.context.errors = validationErrors;
-        this.new(req, res);
-      }
-      else {
-        tag.save(function (err, tag_id) {
-          if (err) {
-            res.render500(err);
-          }
-          else {
-            req.session.set('flash_message', 'Your tag has been saved.', function (err) {
-              res.redirect(req.config.admin_base_address + '/tags', 302);
-            });
-          }
-        });
-      }
-    }.bind(this));
-  }
-};
+  if (Object.prototype.toString.call(obj.data.tag_id) !== '[object Array]' || obj.data.tag_id.length === 0) { return done(new error.BadRequestError()); }
 
-AdminTagController.prototype.delete = function (req, res) {
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-    return;
-  }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
 
-  if (Object.keys(req.data).length === 0) {
-    res.redirect(req.config.admin_base_address + '/tags');
-    return;
-  }
+  var tag = this._tag();
 
-  if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-    return;
-  }
+  tag.setData({
+    tag_id: obj.data.tag_id,
+    by: obj.current_user.user_id
+  });
+  tag.delete(function (err) {
+    if (err) { return done(err); }
 
-  req.view.template = 'admin_tags_delete';
-  req.view.context.tag_ids = req.data.tag_id;
-  this._view.render(req, res);
-};
-
-AdminTagController.prototype.confirmDelete = function (req, res) {
-  var tag;
-
-  if (!req.current_user || !req.current_user.role_id) {
-    res.redirect('/', 302);
-  }
-  else if (Object.prototype.toString.call(req.data.tag_id) !== '[object Array]' || req.data.tag_id.length === 0) {
-    res.redirect(req.config.admin_base_address + '/tags', 302);
-  }
-  else if (req.data.csrf_token !== req.session.uid()) {
-    res.render400();
-    return;
-  }
-  else {
-    tag = this._tag();
-    tag.setData({
-      tag_id: req.data.tag_id,
-      by: req.current_user.user_id
+    obj.session.set('flash_message', 'The tags have been deleted.', function (err) {
+      obj.redirect(obj.config.admin_base_address + '/tags', 302);
     });
-    tag.delete(function (err) {
-      if (err) {
-        res.render500(err);
-      }
-      else {
-        req.session.set('flash_message', 'The tags have been deleted.', function (err) {
-          res.redirect(req.config.admin_base_address + '/tags', 302);
-        });
-      }
-    });
-  }
+  });
 };
 
 AdminTagController.prototype._tag = function () {
   return Tag(this._tagStore);
 }
 
-function newAdminTagController(view, tagStore) {
-  var controller = new AdminTagController(boundMethods);
-  controller.setView(view);
+function newAdminTagController(tagStore) {
+  var controller = new AdminTagController();
   controller.setTagStore(tagStore);
   return controller;
 }
