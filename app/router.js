@@ -1,11 +1,10 @@
-var Template = require('./templates.js');
+var Template = require('../lib/templates/');
 var Ftybr = require('ftybr');
 var FormData = require('barnacle-parse-formdata');
 var addTo = require('barnacle-add-to');
 var redirect = require('barnacle-redirect');
-var pgSession = require('barnacle-pg-session');
 var hasPermission = require('../lib/middleware/barnacles/has-permission');
-var clean = require('../lib/middleware/barnacles/clean')();
+var flashMessages = require('barnacle-flash-messages')(['flash_message']);
 var getUser = require('../lib/middleware/barnacles/get-user');
 var BarnacleView = require('barnacle-view');
 
@@ -44,22 +43,25 @@ function requestListener(app, req, res) {
   var addHasPermission = hasPermission();
   var viewStream = new BarnacleView();
   var errorHandler = action.emit.bind(action, 'error');
-  var cleanUp = clean();
-  var streams = [ parseFormData, session, addUser, addConfig, addNavigation, addRedirect, addHasPermission ];
+  var flash = flashMessages();
+  var streams = [ parseFormData, session, addUser, addConfig, addNavigation, addRedirect, addHasPermission, flash ];
 
   viewStream.setErrorHandler(function (error, statusCode) {
-    var template = new Template(error, 'default');
+    var template;
+
+    error.config = app.config;
+    error.navigation = app.navigation;
+    template = new Template(error, 'error');
 
     return template.generate('error_' + statusCode, error);
   });
   bindStreamErrorEvents(streams, streamOnError(errorHandler));
-  streams = [].concat(req, streams, action, cleanUp, viewStream, res);
+  streams = [].concat(req, streams, action, viewStream, res);
   plumb(streams);
 };
 
 function init(app, done) {
   app.router = new Ftybr();
-  app.session = pgSession({pg: app.pg, conString: app.pgConString});
   Object.keys(app.controller).forEach(registerControllers(app.router, app.controller));
   app.requestListener = requestListener.bind(null, app);
   done();

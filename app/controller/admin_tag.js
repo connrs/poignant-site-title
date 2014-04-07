@@ -1,6 +1,6 @@
 var Controller = require('./core');
 var Tag = require('../../lib/model/tag.js');
-var error = require('../../lib/error/index.js');
+var HTTPError = require('http-errors');
 
 function filtersNotEmpty(filters) {
   var f;
@@ -104,11 +104,11 @@ AdminTagController.prototype.edit = function (obj, done) {
 };
 
 AdminTagController.prototype.editPost = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
+  if (Object.keys(obj.data).length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var tag = this._tag();
 
@@ -118,7 +118,7 @@ AdminTagController.prototype.editPost = function (obj, done) {
   tag.findById(obj.data.tag_id, function (err, tagData) {
     if (err) { return done(err); }
 
-    if (!tagData) { return done(new error.BadRequestError()); }
+    if (!tagData) { return done(new HTTPError.BadRequestError()); }
 
     obj.data.name = tagData.name;
     tag.setData(obj.data);
@@ -150,11 +150,11 @@ AdminTagController.prototype.editPost = function (obj, done) {
 };
 
 AdminTagController.prototype.delete = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
+  if (Object.keys(obj.data).length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var template = this._template(obj, 'admin');
   var context = {
@@ -167,11 +167,11 @@ AdminTagController.prototype.delete = function (obj, done) {
 };
 
 AdminTagController.prototype.confirmDelete = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (Object.prototype.toString.call(obj.data.tag_id) !== '[object Array]' || obj.data.tag_id.length === 0) { return done(new error.BadRequestError()); }
+  if (Object.prototype.toString.call(obj.data.tag_id) !== '[object Array]' || obj.data.tag_id.length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var tag = this._tag();
 

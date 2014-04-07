@@ -1,4 +1,4 @@
-var Template = require('../templates.js');
+var Template = require('../../lib/templates/');
 
 function Controller() {}
 

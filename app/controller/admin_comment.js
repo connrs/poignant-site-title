@@ -1,6 +1,6 @@
 var Controller = require('./core');
 var Comment = require('../../lib/model/comment.js');
-var error = require('../../lib/error/index.js');
+var HTTPError = require('http-errors');
 
 function filtersNotEmpty(filters) {
   var f;
@@ -135,7 +135,7 @@ AdminCommentController.prototype.index = function (obj, done) {
 };
 
 AdminCommentController.prototype.approve = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(HTTPError.NotAuthorizedError()); }
 
   var template = this._template(obj, 'admin');
   var context = {
@@ -147,10 +147,10 @@ AdminCommentController.prototype.approve = function (obj, done) {
       done(err);
     }
     else if (!comment) {
-      done(new error.NotFoundError());
+      done(new HTTPError.NotFoundError());
     }
     else if (comment.comment_status_type_id !== 1) {
-      done(new error.BadRequestError(JSON.stringify(comment)));
+      done(new HTTPError.BadRequestError(JSON.stringify(comment)));
     }
     else {
       context.comment = comment;
@@ -162,11 +162,11 @@ AdminCommentController.prototype.approve = function (obj, done) {
 };
 
 AdminCommentController.prototype.approvePost = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (!Object.keys(obj.data).length || obj.data.comment_status_type_id === undefined) { return done(new error.BadRequestError()); }
+  if (!Object.keys(obj.data).length || obj.data.comment_status_type_id === undefined) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var comment = this._comment();
   comment.setData({comment_id: obj.params.comment_id, by: obj.current_user.user_id, content: obj.data.content});
@@ -175,7 +175,7 @@ AdminCommentController.prototype.approvePost = function (obj, done) {
   comment.findById(obj.params.comment_id, function (err, commentData) {
     if (err) { return done(err); }
 
-    if (!commentData || commentData.comment_status_type_id !== 1) { return done(new error.BadRequestError()); }
+    if (!commentData || commentData.comment_status_type_id !== 1) { return done(new HTTPError.BadRequestError()); }
 
     if (obj.data.comment_status_type_id === 2) {
       comment.hasChanged(function (err, changed) {
@@ -223,17 +223,17 @@ AdminCommentController.prototype.approvePost = function (obj, done) {
       });
     }
     else {
-      done(new error.BadRequestError());
+      done(new HTTPError.BadRequestError());
     }
   }.bind(this));
 };
 
 AdminCommentController.prototype.delete = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
+  if (Object.keys(obj.data).length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var template = this._template(obj, 'admin');
   var context = {
@@ -246,11 +246,11 @@ AdminCommentController.prototype.delete = function (obj, done) {
 };
 
 AdminCommentController.prototype.confirmDelete = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (!Array.isArray(obj.data.comment_id) || obj.data.comment_id.length === 0) { return done(new error.BadRequestError()); }
+  if (!Array.isArray(obj.data.comment_id) || obj.data.comment_id.length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var comment = this._comment();
 

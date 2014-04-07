@@ -1,5 +1,5 @@
 var Controller = require('./core');
-var error = require('../../lib/error/index.js');
+var HTTPError = require('http-errors');
 
 function filtersNotEmpty(filters) {
   var f;
@@ -38,7 +38,7 @@ AdminSettingsController.prototype.setConfig = function (config) {
 };
 
 AdminSettingsController.prototype.index = function (obj, done) {
-  if (!obj.hasPermission(['su'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su'])) { return done(new HTTPError.NotAuthorizedError()); }
 
   var template = this._template(obj, 'admin');
   var context = {
@@ -51,7 +51,7 @@ AdminSettingsController.prototype.index = function (obj, done) {
 };
 
 AdminSettingsController.prototype.general = function (obj, done) {
-  if (!obj.hasPermission(['su'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su'])) { return done(new HTTPError.NotAuthorizedError()); }
 
   var template = this._template(obj, 'admin');
   var context = {
@@ -77,7 +77,7 @@ AdminSettingsController.prototype.general = function (obj, done) {
 };
 
 AdminSettingsController.prototype.generalPost = function (obj, done) {
-  if (!obj.hasPermission(['su'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su'])) { return done(new HTTPError.NotAuthorizedError()); }
 
 };
 

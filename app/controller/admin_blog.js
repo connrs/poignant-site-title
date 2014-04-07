@@ -4,7 +4,7 @@ var Tag = require('../../lib/model/tag.js');
 var newPostPath = 'new_post';
 var amendedPostPath = 'amended_post';
 var approvedPostPath = 'approved_post';
-var error = require('../../lib/error/index.js');
+var HTTPError = require('http-errors');
 
 function filtersNotEmpty(filters) {
   var f;
@@ -71,7 +71,7 @@ AdminBlogController.prototype.index = function (obj, done) {
     'cache-control': 'no-cache'
   }
 
-  if (!obj.hasPermission()) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
 
   context.filters = {
     limit: limit,
@@ -157,7 +157,7 @@ AdminBlogController.prototype.edit = function (obj, done) {
   };
 
   if (!obj.hasPermission()) {
-    return done(new error.NotAuthorizedError());
+    return done(new HTTPError.NotAuthorizedError());
   }
 
   if (obj.data.post) {
@@ -170,9 +170,9 @@ AdminBlogController.prototype.edit = function (obj, done) {
   post.findById(obj.params.post_id, function (err, post) {
     if (err) { return done(err); }
 
-    if (!obj.hasPermission(['su', 'editor']) && post.inserted_by !== obj.current_user.user_id) { return done(new error.NotAuthorizedError()); }
+    if (!obj.hasPermission(['su', 'editor']) && post.inserted_by !== obj.current_user.user_id) { return done(new HTTPError.NotAuthorizedError()); }
 
-    if (post.can_edit !== 1) { return done(new error.BadRequestError()); }
+    if (post.can_edit !== 1) { return done(new HTTPError.BadRequestError()); }
 
     context.post = post;
     context.page = { title: 'Edit post - ' + post.title };
@@ -182,11 +182,11 @@ AdminBlogController.prototype.edit = function (obj, done) {
 };
 
 AdminBlogController.prototype.editPost = function (obj, done) {
-  if (!obj.hasPermission()) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
+  if (Object.keys(obj.data).length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var post = this._post();
   obj.data.post_status_type_id = +obj.data.post_status_type_id;
@@ -197,9 +197,9 @@ AdminBlogController.prototype.editPost = function (obj, done) {
     post.findById(obj.data.post_id, function (err, postData) {
       if (err) { return done(err); }
 
-      if (!obj.hasPermission(['su', 'editor']) && postData.inserted_by !== obj.current_user.user_id) { return done(new error.NotAuthorizedError()); }
+      if (!obj.hasPermission(['su', 'editor']) && postData.inserted_by !== obj.current_user.user_id) { return done(new HTTPError.NotAuthorizedError()); }
 
-      if (postData.post_status_type_id !== 1) { return done(new error.BadRequestError('You are not permitted to perform that action')); }
+      if (postData.post_status_type_id !== 1) { return done(new HTTPError.BadRequestError('You are not permitted to perform that action')); }
 
       post.hasChanged(function (err, changed) {
         if (err) { return done(err); }
@@ -230,9 +230,9 @@ AdminBlogController.prototype.editPost = function (obj, done) {
     post.findById(obj.data.post_id, function (err, postData) {
       if (err) { return done(err); }
 
-      if (!postData) { return done(new error.NotFoundError()); };
+      if (!postData) { return done(new HTTPError.NotFoundError()); };
 
-      if (!obj.hasPermission(['su', 'editor']) && postData.inserted_by !== obj.current_user.user_id) { return done(new error.NotAuthorizedError()); }
+      if (!obj.hasPermission(['su', 'editor']) && postData.inserted_by !== obj.current_user.user_id) { return done(new HTTPError.NotAuthorizedError()); }
 
       post.hasChanged(function (err, changed) {
         if (err) { return done(err); }
@@ -291,7 +291,7 @@ AdminBlogController.prototype.editPost = function (obj, done) {
 
 AdminBlogController.prototype.approveDashboard = function (obj, done) {
   if (!obj.hasPermission(['su', 'editor'])) {
-    done(new error.NotAuthorizedError());
+    done(new HTTPError.NotAuthorizedError());
   }
   else {
     this._post().getUnapproved(function (err, posts) {
@@ -314,7 +314,7 @@ AdminBlogController.prototype.approveDashboard = function (obj, done) {
 };
 
 AdminBlogController.prototype.approve = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
   var template = this._template(obj, 'admin');
   var context = {
@@ -338,11 +338,11 @@ AdminBlogController.prototype.approve = function (obj, done) {
 };
 
 AdminBlogController.prototype.approvePost = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (!Object.keys(obj.data).length || obj.data.post_status_type_id === undefined) { return done(new error.BadRequestError()); }
+  if (!Object.keys(obj.data).length || obj.data.post_status_type_id === undefined) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var post = this._post();
 
@@ -377,7 +377,7 @@ AdminBlogController.prototype.approvePost = function (obj, done) {
 };
 
 AdminBlogController.prototype.new = function (obj, done) {
-  if (!obj.hasPermission()) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
 
   var template = this._template(obj, 'admin');
   var context = {
@@ -390,7 +390,7 @@ AdminBlogController.prototype.new = function (obj, done) {
 };
 
 AdminBlogController.prototype.newPost = function (obj, done) {
-  if (!obj.current_user || !obj.current_user.role_id) { return done(new error.NotAuthorizedError()); }
+  if (!obj.current_user || !obj.current_user.role_id) { return done(new HTTPError.NotAuthorizedError()); }
 
   if (Object.keys(obj.data).length === 0) {
     obj.formErrors = { general: 'No data submitted' };
@@ -398,7 +398,7 @@ AdminBlogController.prototype.newPost = function (obj, done) {
   }
 
   if (obj.data.csrf_token !== obj.session.uid()) {
-    return done(new error.BadRequestError());
+    return done(new HTTPError.BadRequestError());
   }
 
   var post;
@@ -442,11 +442,11 @@ AdminBlogController.prototype.newPost = function (obj, done) {
 };
 
 AdminBlogController.prototype.delete = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (Object.keys(obj.data).length === 0) { return done(new error.BadRequestError()); }
+  if (Object.keys(obj.data).length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var post;
   var template = this._template(obj, 'admin');
@@ -460,11 +460,11 @@ AdminBlogController.prototype.delete = function (obj, done) {
 };
 
 AdminBlogController.prototype.confirmDelete = function (obj, done) {
-  if (!obj.hasPermission(['su', 'editor'])) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  if (Object.prototype.toString.call(obj.data.post_id) !== '[object Array]' || obj.data.post_id.length === 0) { return done(new error.BadRequestError()); }
+  if (Object.prototype.toString.call(obj.data.post_id) !== '[object Array]' || obj.data.post_id.length === 0) { return done(new HTTPError.BadRequestError()); }
 
-  if (obj.data.csrf_token !== obj.session.uid()) { return done(new error.BadRequestError()); }
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
   var post;
 

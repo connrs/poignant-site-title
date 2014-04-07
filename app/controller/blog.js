@@ -3,7 +3,7 @@ var Post = require('../../lib/model/post.js');
 var Tag = require('../../lib/model/tag.js');
 var Comment = require('../../lib/model/comment.js');
 var S = require('string');
-var error = require('../../lib/error/index.js');
+var HTTPError = require('http-errors');
 var commentPath = 'comment';
 
 function BlogController() {
@@ -78,7 +78,7 @@ BlogController.prototype.index = function (obj, done) {
       done(err);
     }
     else if (Math.ceil(results.count / limit) < page) {
-      done(new error.NotFoundError());
+      done(new HTTPError.NotFoundError());
     }
     else {
       obj.output = template('blog_index', {
@@ -110,7 +110,7 @@ BlogController.prototype.tag = function (obj, done) {
       done(err);
     }
     else if (!tag || tag.post_count === 0) {
-      done(new error.NotFoundError());
+      done(new HTTPError.NotFoundError());
     }
     else {
       var data = {
@@ -124,7 +124,7 @@ BlogController.prototype.tag = function (obj, done) {
           done(err);
         }
         else if (!posts.length) {
-          done(new error.BadRequestError())
+          done(new HTTPError.BadRequestError())
         }
         else {
           obj.output = template('blog_tag', {
@@ -209,7 +209,7 @@ BlogController.prototype.newCommentPost = function (obj, done) {
     this.view(obj, done);
   }
   else if (obj.data.csrf_token !== obj.session.uid()) {
-    done(new error.BadRequestError());
+    done(new HTTPError.BadRequestError());
     return;
   }
   else {

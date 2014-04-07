@@ -1,5 +1,5 @@
 var Controller = require('./core');
-var error = require('../../lib/error/index.js');
+var HTTPError = require('http-errors');
 
 function AdminController() {
   Controller.apply(this, arguments);
@@ -16,7 +16,7 @@ AdminController.prototype.setPostActivityStore = function (postActivityStore) {
 };
 
 AdminController.prototype.index = function (obj, done) {
-  if (!obj.hasPermission()) { return done(new error.NotAuthorizedError()); }
+  if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
 
   var count = 1;
   var template = this._template(obj, 'admin');

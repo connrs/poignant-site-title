@@ -1,7 +1,7 @@
 var Controller = require('./core');
 var User = require('../../lib/model/user.js');
 var IdentityToken = require('../../lib/model/identity_token.js');
-var error = require('../../lib/error/index.js');
+var HTTPError = require('http-errors');
 
 function AuthController() {
   Controller.apply(this, arguments);
@@ -51,7 +51,7 @@ AuthController.prototype.authWith = function (obj, done) {
   }
 
   if (!obj.params.idp || !this._idp[obj.params.idp.toLowerCase()]) {
-    done(new error.InternalServerError());
+    done(new HTTPError.InternalServerError());
   }
   else {
     obj.redirect(this._idp[obj.params.idp.toLowerCase()]().authUrl(params), 302);
@@ -60,7 +60,7 @@ AuthController.prototype.authWith = function (obj, done) {
 
 AuthController.prototype.google = function (obj, done) {
   if (obj.data.state !== obj.session.uid()) {
-    done(new error.NotFoundError());
+    done(new HTTPError.NotFoundError());
   }
   else {
     this._idp.google().identity(obj.data.code, function (err, identity) {
@@ -110,7 +110,7 @@ AuthController.prototype.google = function (obj, done) {
 
 AuthController.prototype.github = function (obj, done) {
   if (obj.data.state !== obj.session.uid()) {
-    done(new error.BadRequestError());
+    done(new HTTPError.BadRequestError());
   }
   else {
     this._idp.github().identity(obj.data.code, function (err, identity) {
@@ -148,7 +148,7 @@ AuthController.prototype.github = function (obj, done) {
 
 AuthController.prototype.facebook = function (obj, done) {
   if (obj.data.state !== obj.session.uid()) {
-    done(new error.BadRequestError());
+    done(new HTTPError.BadRequestError());
   }
   else {
     this._idp.facebook().identity(obj.data.code, function (err, identity) {
