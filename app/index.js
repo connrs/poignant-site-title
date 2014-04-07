@@ -15,15 +15,15 @@ var app = {
   }
 };
 var steps = [
-  require('./events.js'),
-  require('./db.js'),
-  require('./types.js'),
-  require('./stores.js'),
-  require('./config.js'),
-  require('./idp.js'),
-  require('./menu_items.js'),
-  require('./controllers.js'),
-  require('./router.js')
+  require('./init/events.js'),
+  require('./init/db.js'),
+  require('./init/types.js'),
+  require('./init/stores.js'),
+  require('./init/config.js'),
+  require('./init/idp.js'),
+  require('./init/menu_items.js'),
+  require('./init/controllers.js'),
+  require('./init/request_listener.js')
 ];
 
 function reduceStep(callback, done, step) {

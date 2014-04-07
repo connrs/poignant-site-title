@@ -1,4 +1,4 @@
-var newConfig = require('../lib/configure');
+var newConfig = require('../../lib/configure');
 
 function rebuildConfig(app) {
   var getStandingData = 'SELECT key, value FROM standing_data WHERE deleted IS NULL';

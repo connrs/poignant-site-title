@@ -1,9 +1,9 @@
-var postStore = require('../lib/store/post.js');
-var tagStore = require('../lib/store/tag.js');
-var commentStore = require('../lib/store/comment.js');
-var userStore = require('../lib/store/user.js');
-var postActivityStore = require('../lib/store/post_activity.js');
-var identityTokenStore = require('../lib/store/identity_token.js');
+var postStore = require('../../lib/store/post.js');
+var tagStore = require('../../lib/store/tag.js');
+var commentStore = require('../../lib/store/comment.js');
+var userStore = require('../../lib/store/user.js');
+var postActivityStore = require('../../lib/store/post_activity.js');
+var identityTokenStore = require('../../lib/store/identity_token.js');
 
 function init(app, done) {
   app.store = {

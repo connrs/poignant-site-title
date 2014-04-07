@@ -1,11 +1,11 @@
-var Template = require('../lib/templates/');
+var Template = require('../../lib/templates/');
 var Ftybr = require('ftybr');
 var FormData = require('barnacle-parse-formdata');
 var addTo = require('barnacle-add-to');
 var redirect = require('barnacle-redirect');
-var hasPermission = require('../lib/middleware/barnacles/has-permission');
+var hasPermission = require('../../lib/middleware/barnacles/has-permission');
 var flashMessages = require('barnacle-flash-messages')(['flash_message']);
-var getUser = require('../lib/middleware/barnacles/get-user');
+var getUser = require('../../lib/middleware/barnacles/get-user');
 var BarnacleView = require('barnacle-view');
 
 function registerControllers(router, controllers) {
