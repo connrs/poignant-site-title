@@ -1,6 +1,9 @@
+var barnacleMode = require('barnacle-mode');
 var Controller = require('./core');
-var Post = require('../../lib/model/post.js');
-var Tag = require('../../lib/model/tag.js');
+var Post = require('../model/post.js');
+var Posts = require('../collection/posts.js');
+var Tag = require('../model/tag.js');
+var Tags = require('../collection/tags.js');
 var Comment = require('../../lib/model/comment.js');
 var S = require('string');
 var HTTPError = require('http-errors');
@@ -8,34 +11,57 @@ var commentPath = 'comment';
 
 function BlogController() {
   Controller.apply(this, arguments);
+
   this._routes = [
-    ['get', '/', this.home.bind(this)],
-    ['head', '/', this.home.bind(this)],
-    ['get', '/posts/:slug', this.view.bind(this)],
-    ['head', '/posts/:slug', this.view.bind(this)],
-    ['post', '/posts/:slug', this.newCommentPost.bind(this)],
-    ['get', '/archives', this.index.bind(this)],
-    ['head', '/archives', this.index.bind(this)],
-    ['get', '/archives/:page', this.index.bind(this)],
-    ['head', '/archives/:page', this.index.bind(this)],
-    ['get', '/tags', this.tags.bind(this)],
-    ['head', '/tags', this.tags.bind(this)],
-    ['get', '/tags/:name', this.tag.bind(this)],
-    ['head', '/tags/:name', this.tag.bind(this)],
-    ['get', '/tags/:name/:page', this.tag.bind(this)],
-    ['head', '/tags/:name/:page', this.tag.bind(this)]
+    ['get', '/', {
+      action: this._actionStream('home')
+    }],
+    ['head', '/', {
+      action: this._actionStream('home')
+    }],
+    ['get', '/posts/:slug', {
+      action: this._actionStream('view')
+    }],
+    ['head', '/posts/:slug', {
+      action: this._actionStream('view')
+    }],
+    ['post', '/posts/:slug', {
+      action: this._actionStream('newCommentPost')
+    }],
+    ['get', '/archives', {
+      action: this._actionStream('index')
+    }],
+    ['head', '/archives', {
+      action: this._actionStream('index')
+    }],
+    ['get', '/archives/:page', {
+      action: this._actionStream('index')
+    }],
+    ['head', '/archives/:page', {
+      action: this._actionStream('index')
+    }],
+    ['get', '/tags', {
+      action: this._actionStream('tags')
+    }],
+    ['head', '/tags', {
+      action: this._actionStream('tags')
+    }],
+    ['get', '/tags/:name', {
+      action: this._actionStream('tag')
+    }],
+    ['head', '/tags/:name', {
+      action: this._actionStream('tag')
+    }],
+    ['get', '/tags/:name/:page', {
+      action: this._actionStream('tag')
+    }],
+    ['head', '/tags/:name/:page', {
+      action: this._actionStream('tag')
+    }]
   ];
 }
 
 BlogController.prototype = Object.create(Controller.prototype, { constructor: BlogController });
-
-BlogController.prototype.setPostStore = function (postStore) {
-  this._postStore = postStore;
-};
-
-BlogController.prototype.setTagStore = function (tagStore) {
-  this._tagStore = tagStore;
-};
 
 BlogController.prototype.setCommentStore = function (commentStore) {
   this._commentStore = commentStore;
@@ -50,198 +76,175 @@ BlogController.prototype.home = function (obj, done) {
   obj.headers = {
     'cache-control': 'no-cache,max-age=0'
   };
-  this._post().getLatest(3, function (err, posts) {
-    if (err) { return done(err); }
+  Posts.getLatest(3).exec(function (err, posts) {
+    if (err) return done(err);
 
     obj.output = template('blog_home', {
-      posts: posts
+      posts: posts.toJSON()
     });
     done(null, obj);
-  }.bind(this));
+  });
 }
 
 BlogController.prototype.index = function (obj, done) {
   var template = this._template(obj, 'default');
   var limit = 20;
   var page = obj.params.page ? obj.params.page : 1;
-  var filters = {
-    post_status_type_id: 3,
-    limit: limit,
-    page: page
-  };
+  var offset = (page - 1) * limit;
 
   obj.header = {
     'cache-control': 'no-cache,max-age=0'
   };
-  this._post().find(filters, function (err, results) {
-    if (err) {
-      done(err);
-    }
-    else if (Math.ceil(results.count / limit) < page) {
-      done(new HTTPError.NotFoundError());
-    }
-    else {
+  Posts.count({ post_status_type_id: 3 }).exec(function (err, count) {
+    if (err) { return done(err); }
+
+    Posts.forge().query({ limit: limit, offset: offset }).fetch({ post_status_type_id: 3 }).exec(function (err, posts) {
+      if (err) { return done(err); }
+
+      if (!posts.length) { return done(new HTTPError.NotFoundError()); }
+
       obj.output = template('blog_index', {
-        posts: results.posts,
+        posts: posts.toJSON(),
         pagination: {
           url: obj.config.base_address + '/archives',
           perPage: limit,
           page: page,
-          pages: Math.ceil(results.count / limit)
+          pages: Math.ceil(count / limit)
         },
         page: {
           title: 'Archives'
         }
       });
       done(null, obj);
-    }
-  }.bind(this));
+    });
+  });
 }
 
 BlogController.prototype.tag = function (obj, done) {
   var template = this._template(obj, 'default');
   var limit = 10;
-  var start = obj.params.page ? (obj.params.page - 1) * limit : 0;
-  var tag = this._tag();
-  var post = this._post();
+  var page = +(obj.params.page ? obj.params.page : 1);
+  var offset = (page - 1) * limit;
 
-  tag.findByName(obj.params.name, function (err, tag) {
-    if (err) {
-      done(err);
-    }
-    else if (!tag || tag.post_count === 0) {
-      done(new HTTPError.NotFoundError());
-    }
-    else {
-      var data = {
-        post_status_type_id: 3,
-        tag_id: tag.tag_id,
-        start: start,
-        limit: limit
-      };
-      post.find(data, function (err, posts) {
-        if (err) {
-          done(err);
-        }
-        else if (!posts.length) {
-          done(new HTTPError.BadRequestError())
-        }
-        else {
-          obj.output = template('blog_tag', {
-            page: {
-              title: tag.pretty_name || tag.name
-            },
-            pagination: {
-              url: obj.config.base_address + '/tags/' + tag.name,
-              perPage: limit,
-              page: start + 1,
-              pages: Math.ceil(tag.post_count / limit)
-            },
-            posts: posts,
-            tag: tag
-          });
-          done(null, obj);
-        }
-      }.bind(this));
-    }
-  }.bind(this));
+  Tag
+    .forge({ name: obj.params.name })
+    .fetch()
+    .then(Tag.postCount({ post_status_type_id: 3 }))
+    .then(function (tag) {
+      if (!tag || !tag.get('post_count')) {
+        throw new HTTPError.NotFoundError();
+      }
+
+      return tag;
+    })
+    .exec(function (err, tag) {
+      if (err) { return done(err); }
+
+      tag.posts().query({ limit: limit, offset: offset }).fetch({ post_status_type_id: 3 }).exec(function (err, posts) {
+        if (err) { return done(err); }
+
+        obj.output = template('blog_tag', {
+          page: {
+            title: tag.get('pretty_name') || tag.get('name')
+          },
+          pagination: {
+            url: obj.config.base_address + '/tags/' + tag.get('name'),
+            perPage: limit,
+            page: page,
+            pages: Math.ceil(tag.get('post_count') / limit)
+          },
+          posts: posts.toJSON(),
+          tag: tag.toJSON()
+        });
+        done(null, obj);
+      });
+  });
 };
 
 BlogController.prototype.tags = function (obj, done) {
   var template = this._template(obj, 'default');
 
-  this._tag().allWithPosts(function (err, tags) {
-    if (err) {
-      done(err);
-    }
-    else {
+  Tags
+    .forge()
+    .query('where', 'post_count', '>', 0)
+    .fetch()
+    .exec(function (err, tags) {
+      if (err) { return done(err); }
+
       obj.output = template('blog_tags', {
-        tags: tags,
+        tags: tags.toJSON(),
         page: {
           title: 'Tags'
         }
       });
       done(null, obj);
-    }
-  }.bind(this));
+    });
 };
 
 BlogController.prototype.view = function (obj, done) {
   var template = this._template(obj, 'default');
 
-  this._post().getBySlug(obj.params.slug, function (err, post) {
-    if (err) {
-      done(err);
-    }
-    else {
-      var comment = this._comment();
-      comment.setData({
-        post_id: post.post_id
+  Post.forge({ slug: obj.params.slug }).fetch({ post_status_type_id: 3, withRelated: ['comments', 'tags'] }).exec(function (err, post) {
+    if (err) { return done(err); }
+
+    if (!post) { return done(new HTTPError.NotFoundError()); }
+
+    if (post) {
+      obj.output = template('blog_view', {
+        post: post.toJSON(),
+        page: { title: post.get('title') }
       });
-      comment.findPublished(function (err, comments) {
-        if (err) {
-          done(err);
-        }
-        else {
-          obj.output = template('blog_view', {
-            post: post,
-            comments: comments,
-            page: {
-              title: post.title
-            }
-          });
-          done(null, obj);
-        }
-      }.bind(this));
+      done(null, obj);
     }
-  }.bind(this));
+  });
 };
 
 BlogController.prototype.newCommentPost = function (obj, done) {
   var template = this._template(obj, 'default');
   var comment;
 
-  if (!obj.current_user || !obj.current_user.role_id) {
-    obj.redirect('/', 302);
-  }
-  else if (Object.keys(obj.data).length === 0) {
+  if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
+
+  if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
+
+  if (Object.keys(obj.data).length === 0) {
     obj.formErrors = { general: 'No data submitted' };
     this.view(obj, done);
-  }
-  else if (obj.data.csrf_token !== obj.session.uid()) {
-    done(new HTTPError.BadRequestError());
     return;
   }
-  else {
-    obj.data.by = obj.current_user.user_id;
-    obj.data.comment_type_id = 1;
-    comment = this._comment();
-    comment.setData(obj.data);
-    comment.validate(function (err, validationErrors) {
-      if (err) {
-        done(err);
-      }
-      else if (validationErrors !== false) {
-        obj.formErrors = validationErrors;
-        this.view(obj, done);
-      }
-      else {
-        obj.data.content = S(obj.data.content).stripTags().s;
-        comment.save(function (err, comment_id) {
-          if (err) {
-            done(err);
-          }
-          else {
-            this._publishCommentNotification(obj.data.post_id, comment_id, obj.data.by);
-            obj.session.set('flash_message', 'Your comment has been submitted and will be reviewed.', function (err) {
-              obj.redirect(obj.req.url, 303);
-              //this.view(obj, done);
-            }.bind(this));
-          }
-        }.bind(this));
-      }
-    }.bind(this));
-  }
+
+  obj.data.by = obj.current_user.user_id;
+  obj.data.comment_type_id = 1;
+  var comment = Comment.forge({
+    content: S(obj.data.content).stripTags().s,
+    comment_type_id: 1,
+    by: obj.current_user.user_id
+  });
+  comment = this._comment();
+  comment.setData(obj.data);
+  comment.validate(function (err, validationErrors) {
+    if (err) {
+      done(err);
+    }
+    else if (validationErrors !== false) {
+      obj.formErrors = validationErrors;
+      this.view(obj, done);
+    }
+    else {
+      obj.data.content = S(obj.data.content).stripTags().s;
+      comment.save(function (err, comment_id) {
+        if (err) {
+          done(err);
+        }
+        else {
+          this._publishCommentNotification(obj.data.post_id, comment_id, obj.data.by);
+          obj.session.set('flash_message', 'Your comment has been submitted and will be reviewed.', function (err) {
+            obj.redirect(obj.req.url, 303);
+          }.bind(this));
+        }
+      }.bind(this));
+    }
+  }.bind(this));
 };
 
 BlogController.prototype._publishCommentNotification = function (post_id, comment_id, by) {
@@ -254,22 +257,12 @@ BlogController.prototype._publishCommentNotification = function (post_id, commen
   });
 };
 
-BlogController.prototype._post = function () {
-  return Post(this._postStore);
-}
-
-BlogController.prototype._tag = function () {
-  return Tag(this._tagStore);
-}
-
 BlogController.prototype._comment = function () {
   return Comment(this._commentStore);
 }
 
-function newBlogController(postStore, tagStore, commentStore, stompClient) {
+function newBlogController(commentStore, stompClient) {
   var controller = new BlogController();
-  controller.setPostStore(postStore);
-  controller.setTagStore(tagStore);
   controller.setCommentStore(commentStore);
   controller.setStompClient(stompClient);
   return controller;

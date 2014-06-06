@@ -1,12 +1,22 @@
+var barnacleMode = require('barnacle-mode');
 var Controller = require('./core');
 var User = require('../../lib/model/user.js');
 
 function AccountController() {
   Controller.apply(this, arguments);
+  var addNew = barnacleMode(this.new.bind(this));
+  var postNew = barnacleMode(this.postNew.bind(this));
+
   this._routes = [
-    ['get', '/account/new', this.new.bind(this)],
-    ['head', '/account/new', this.new.bind(this)],
-    ['post', '/account/new', this.postNew.bind(this)]
+    ['get', '/account/new', {
+      action: addNew
+    }],
+    ['head', '/account/new', {
+      action: addNew
+    }],
+    ['post', '/account/new', {
+      action: postNew
+    }]
   ];
 }
 

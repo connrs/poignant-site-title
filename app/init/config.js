@@ -1,7 +1,7 @@
 var newConfig = require('../../lib/configure');
 
 function rebuildConfig(app) {
-  var getStandingData = 'SELECT key, value FROM standing_data WHERE deleted IS NULL';
+  var getStandingData = 'SELECT key, value FROM standing_data WHERE deleted_at IS NULL';
 
   app.storeClient.client(function (err, query) {
     if (err) {

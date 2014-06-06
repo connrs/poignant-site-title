@@ -6,7 +6,7 @@ var idp = {
 };
 
 function init(app, callback) {
-  var getProviders = "SELECT provider_id, name, client_id, client_secret, redirect_uri FROM provider WHERE deleted IS NULL";
+  var getProviders = "SELECT provider_id, name, client_id, client_secret, redirect_uri FROM provider WHERE deleted_at IS NULL";
 
   app.idp = {};
   app.storeClient.client(function (err, query) {

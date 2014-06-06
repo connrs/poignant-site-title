@@ -1,13 +1,20 @@
+var barnacleMode = require('barnacle-mode');
 var Controller = require('./core');
 var RSSView = require('../view/rss.js');
 var Post = require('../../lib/model/post.js');
 var marked = require('marked');
 
 function BlogController() {
+  var posts = barnacleMode(this.posts.bind(this));
+
   Controller.apply(this, arguments);
   this._routes = [
-    ['get', '/posts.rss', this.posts.bind(this)],
-    ['head', '/posts.rss', this.posts.bind(this)]
+    ['get', '/posts.rss', {
+      action: posts
+    }],
+    ['head', '/posts.rss', {
+      action: posts
+    }]
   ];
 }
 

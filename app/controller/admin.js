@@ -1,11 +1,18 @@
+var barnacleMode = require('barnacle-mode');
 var Controller = require('./core');
 var HTTPError = require('http-errors');
 
 function AdminController() {
   Controller.apply(this, arguments);
+  var index = barnacleMode(this.index.bind(this));
+
   this._routes = [
-    ['get', '/admin', this.index.bind(this)],
-    ['head', '/admin', this.index.bind(this)]
+    ['get', '/admin', {
+      action: index
+    }],
+    ['head', '/admin', {
+      action: index
+    }]
   ];
 }
 

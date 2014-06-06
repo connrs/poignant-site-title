@@ -1,41 +1,80 @@
 var Controller = require('./core');
-var Post = require('../../lib/model/post.js');
-var Tag = require('../../lib/model/tag.js');
+var Post = require('../model/post.js');
+var Posts = require('../collection/posts.js');
+var Tag = require('../model/tag.js');
+var Tags = require('../collection/tags.js');
+var LegacyPost = require('../../lib/model/post.js');
+var LegacyTag = require('../../lib/model/tag.js');
 var newPostPath = 'new_post';
 var amendedPostPath = 'amended_post';
 var approvedPostPath = 'approved_post';
 var HTTPError = require('http-errors');
 
-function filtersNotEmpty(filters) {
-  var f;
-
-  for (f in filters) {
-    if (filters.hasOwnProperty(f) && filters[f] !== '' && filters[f] !== null && filters[f] !== undefined && f !== 'page' && f !== 'limit') {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 function AdminBlogController() {
+
   Controller.apply(this, arguments);
   this._routes = [
-    ['all', '/admin/posts', this.index.bind(this)],
-    ['head', '/admin/posts', this.index.bind(this)],
-    ['get', '/admin/posts/new', this.new.bind(this)],
-    ['head', '/admin/posts/new', this.new.bind(this)],
-    ['post', '/admin/posts/new', this.newPost.bind(this)],
-    ['get', '/admin/posts/edit/:post_id', this.edit.bind(this)],
-    ['head', '/admin/posts/edit/:post_id', this.edit.bind(this)],
-    ['post', '/admin/posts/edit/:post_id', this.editPost.bind(this)],
-    ['get', '/admin/posts/approve', this.approveDashboard.bind(this)],
-    ['head', '/admin/posts/approve', this.approveDashboard.bind(this)],
-    ['get', '/admin/posts/approve/:post_id', this.approve.bind(this)],
-    ['head', '/admin/posts/approve/:post_id', this.approve.bind(this)],
-    ['post', '/admin/posts/approve/:post_id', this.approvePost.bind(this)],
-    ['post', '/admin/posts/delete', this.delete.bind(this)],
-    ['post', '/admin/posts/confirm_delete', this.confirmDelete.bind(this)]
+    ['all', '/admin/posts', {
+      action: this._actionStream('index'),
+      formFilters: this._formFilterStream('admin_blog_index', {
+        limit: 10,
+        page: 1
+      }),
+      template: this._templateStream('admin', 'admin_blog_index')
+    }],
+    ['head', '/admin/posts', {
+      action: this._actionStream('index'),
+      formFilters: this._formFilterStream('admin_blog_index', {
+        limit: 20,
+        page: 1
+      }),
+      template: this._templateStream('admin', 'admin_blog_index')
+    }],
+    ['get', '/admin/posts/new', {
+      action: this._actionStream('addNew'),
+      template: this._templateStream('admin', 'admin_blog_new')
+    }],
+    ['head', '/admin/posts/new', {
+      action: this._actionStream('addNew')
+    }],
+    ['post', '/admin/posts/new', {
+      action: this._actionStream('newPost')
+    }],
+    ['get', '/admin/posts/edit/:post_id', {
+      action: this._actionStream('edit'),
+      template: this._templateStream('admin', 'admin_blog_edit')
+    }],
+    ['head', '/admin/posts/edit/:post_id', {
+      action: this._actionStream('edit'),
+      template: this._templateStream('admin', 'admin_blog_edit')
+    }],
+    ['post', '/admin/posts/edit/:post_id', {
+      action: this._actionStream('editPost')
+    }],
+    ['get', '/admin/posts/approve', {
+      action: this._actionStream('approveDashboard')
+    }],
+    ['head', '/admin/posts/approve', {
+      action: this._actionStream('approveDashboard')
+    }],
+    ['get', '/admin/posts/approve/:post_id', {
+      action: this._actionStream('approve'),
+      template: this._templateStream('admin', 'admin_blog_approve_post')
+    }],
+    ['head', '/admin/posts/approve/:post_id', {
+      action: this._actionStream('approve'),
+      template: this._templateStream('admin', 'admin_blog_approve_post')
+    }],
+    ['post', '/admin/posts/approve/:post_id', {
+      action: this._actionStream('approvePost')
+    }],
+    ['post', '/admin/posts/delete', {
+      action: this._actionStream('deletePost'),
+      template: this._templateStream('admin', 'admin_blog_delete')
+    }],
+    ['post', '/admin/posts/confirm_delete', {
+      action: this._actionStream('confirmDelete')
+    }]
   ];
 }
 
@@ -58,14 +97,15 @@ AdminBlogController.prototype.setStompClient = function (client) {
 };
 
 AdminBlogController.prototype.index = function (obj, done) {
-  var template = this._template(obj, 'admin')
-  var limit = 20;
-  var page = obj.data.page ? obj.data.page : 1;
-  var filters;
   var post = this._post();
   var context = {
-    current_navigation: 'admin_blog_index'
-  }
+    current_navigation: 'admin_blog_index',
+    page: { title: 'Posts dashboard' },
+    types: {
+      postStatus: this._types.postStatus.filter(function (t) { return [1,3].indexOf(t.id) !== -1; })
+    },
+    filters: obj.formFilters || {}
+  };
 
   obj.headers = {
     'cache-control': 'no-cache'
@@ -73,96 +113,29 @@ AdminBlogController.prototype.index = function (obj, done) {
 
   if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
 
-  context.filters = {
-    limit: limit,
-    page: page
-  };
-  context.types = {
-    postStatus: this._types.postStatus.filter(function (t) { return [1,3].indexOf(t.id) !== -1; })
-  };
-  context.page = { title: 'Posts dashboard' };
-
-  if (obj.data.clear !== undefined) {
-    obj.session.set('admin_blog_index', {}, function (err) {
-      context.filters = {};
-
-      if (filtersNotEmpty(context.filters)) {
-        post.find(context.filters, function (err, results) {
-          context.posts = results.posts;
-          context.pagination = {
-            perPage: limit,
-            page: page,
-            pages: Math.ceil(results.count / limit)
-          };
-          obj.output = template('admin_blog_index', context);
-          done(null, obj);
-        }.bind(this));
-      }
-      else {
-        obj.output = template('admin_blog_index', context);
-        done(null, obj);
-      }
-    }.bind(this));
-  }
-  else if (Object.keys(obj.data).length) {
-    obj.session.set('admin_blog_index', obj.data, function (err) {
-      context.filters.post_status_type_id = obj.data.post_status_type_id;
-      context.filters.title = obj.data.title;
-      if (filtersNotEmpty(context.filters)) {
-        post.find(context.filters, function (err, results) {
-          context.posts = results.posts;
-          context.pagination = {
-            perPage: limit,
-            page: page,
-            pages: Math.ceil(results.count / limit)
-          };
-          obj.output = template('admin_blog_index', context);
-          done(null, obj);
-        }.bind(this));
-      }
-      else {
-        obj.output = template('admin_blog_index', context);
-        done(null, obj);
-      }
-    }.bind(this));
-  }
-  else {
-    context.filters = obj.session.get('admin_blog_index') || {};
-    context.filters.page = page;
-    context.filters.limit = limit;
-    if (filtersNotEmpty(context.filters)) {
-      post.find(context.filters, function (err, results) {
-        context.posts = results.posts;
-        context.pagination = {
-          perPage: limit,
-          page: page,
-          pages: Math.ceil(results.count / limit)
-        };
-        obj.output = template('admin_blog_index', context);
-        done(null, obj);
-      }.bind(this));
-    }
-    else {
-      obj.output = template('admin_blog_index', context);
-      done(null, obj);
-    }
-  }
+  post.find(context.filters, function (err, results) {
+    context.posts = results.posts;
+    context.pagination = {
+      perPage: context.filters.limit,
+      page: context.filters.page || 1,
+      pages: Math.ceil(results.count / context.filters.limit)
+    };
+    obj.context = context;
+    done(null, obj);
+  }.bind(this));
 };
 
 AdminBlogController.prototype.edit = function (obj, done) {
   var post;
-  var template = this._template(obj, 'admin');
-  var context = {
+
+  if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
+
+  obj.context = {
     current_navigation: 'admin_blog_edit'
   };
 
-  if (!obj.hasPermission()) {
-    return done(new HTTPError.NotAuthorizedError());
-  }
-
   if (obj.data.post) {
-    context.post = obj.data.post;
-    obj.output = template(context.current_navigation, context);
+    obj.context.post = obj.data.post;
     return done(null, obj);
   }
 
@@ -174,9 +147,8 @@ AdminBlogController.prototype.edit = function (obj, done) {
 
     if (post.can_edit !== 1) { return done(new HTTPError.BadRequestError()); }
 
-    context.post = post;
-    context.page = { title: 'Edit post - ' + post.title };
-    obj.output = template(context.current_navigation, context);
+    obj.context.post = post;
+    obj.context.page = { title: 'Edit post - ' + post.title };
     done(null, obj);
   }.bind(this));
 };
@@ -316,22 +288,19 @@ AdminBlogController.prototype.approveDashboard = function (obj, done) {
 AdminBlogController.prototype.approve = function (obj, done) {
   if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
-  var template = this._template(obj, 'admin');
-  var context = {
-    'current_navigation': 'admin_blog_approve_post'
-  }
+  obj.context = {
+    current_navigation: 'admin_blog_approve_post'
+  };
 
   this._post().findById(obj.params.post_id, function (err, post) {
-    if (err) {
-      done(err);
-    }
-    else if (post.post_status_type_id !== 5 && post.post_status_type_id !== 2) {
+    if (err) { return done(err); }
+
+    if (post.post_status_type_id !== 5 && post.post_status_type_id !== 2) {
       obj.redirect('/', 302);
     }
     else {
-      context.post = post;
-      context.page = { title: 'Approve post - ' + post.title };
-      obj.output = template(context.current_navigation, context);
+      obj.context.post = post;
+      obj.context.page = { title: 'Approve post - ' + post.title };
       done(null, obj);
     }
   }.bind(this));
@@ -376,16 +345,13 @@ AdminBlogController.prototype.approvePost = function (obj, done) {
   }.bind(this));
 };
 
-AdminBlogController.prototype.new = function (obj, done) {
+AdminBlogController.prototype.addNew = function (obj, done) {
   if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
 
-  var template = this._template(obj, 'admin');
-  var context = {
-    'current_navigation': 'admin_blog_new'
-  }
-
-  context.page = { title: 'New post' };
-  obj.output = template(context.current_navigation, context);
+  obj.context = {
+    current_navigation: 'admin_blog_new',
+    page: { title: 'New post' }
+  };
   done(null, obj);
 };
 
@@ -441,21 +407,18 @@ AdminBlogController.prototype.newPost = function (obj, done) {
   }.bind(this));
 };
 
-AdminBlogController.prototype.delete = function (obj, done) {
+AdminBlogController.prototype.deletePost = function (obj, done) {
   if (!obj.hasPermission(['su', 'editor'])) { return done(new HTTPError.NotAuthorizedError()); }
 
   if (Object.keys(obj.data).length === 0) { return done(new HTTPError.BadRequestError()); }
 
   if (obj.data.csrf_token !== obj.session.uid()) { return done(new HTTPError.BadRequestError()); }
 
-  var post;
-  var template = this._template(obj, 'admin');
-  var context = {
-    'current_navigation': 'admin_blog_delete'
-  }
+  obj.context = {
+    current_navigation: 'admin_blog_delete',
+    post_ids: obj.data.post_id
+  };
 
-  context.post_ids = obj.data.post_id;
-  obj.output = template(context.current_navigation, context);
   done(null, obj);
 };
 
@@ -509,11 +472,11 @@ AdminBlogController.prototype._publishAmendedPostNotification = function (post_i
 };
 
 AdminBlogController.prototype._post = function () {
-  return Post(this._postStore);
+  return LegacyPost(this._postStore);
 };
 
 AdminBlogController.prototype._tag = function () {
-  return Tag(this._tagStore);
+  return LegacyTag(this._tagStore);
 };
 
 function newAdminBlogController(postStore, tagStore, types, stomp) {

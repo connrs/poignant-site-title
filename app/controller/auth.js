@@ -1,22 +1,52 @@
+var barnacleMode = require('barnacle-mode');
 var Controller = require('./core');
 var User = require('../../lib/model/user.js');
 var IdentityToken = require('../../lib/model/identity_token.js');
 var HTTPError = require('http-errors');
 
 function AuthController() {
+  var authWith = barnacleMode(this.authWith.bind(this));
+  var google = barnacleMode(this.google.bind(this));
+  var github = barnacleMode(this.github.bind(this));
+  var facebook = barnacleMode(this.facebook.bind(this));
+  var persona = barnacleMode(this.persona.bind(this));
+  var logout = barnacleMode(this.logout.bind(this));
+
   Controller.apply(this, arguments);
   this._routes = [
-    ['all', '/auth/with_:idp', this.authWith.bind(this)],
-    ['head', '/auth/with_:idp', this.authWith.bind(this)],
-    ['all', '/auth/google(\\?.*)?', this.google.bind(this)],
-    ['head', '/auth/google(\\?.*)?', this.google.bind(this)],
-    ['all', '/auth/github(\\?.*)?', this.github.bind(this)],
-    ['head', '/auth/github(\\?.*)?', this.github.bind(this)],
-    ['all', '/auth/facebook(\\?.*)?', this.facebook.bind(this)],
-    ['head', '/auth/facebook(\\?.*)?', this.facebook.bind(this)],
-    ['all', '/auth/persona(\\?.*)?', this.persona.bind(this)],
-    ['head', '/auth/persona(\\?.*)?', this.persona.bind(this)],
-    ['get', '/auth/logout', this.logout.bind(this)]
+    ['all', '/auth/with_:idp', {
+      action: authWith
+    }],
+    ['head', '/auth/with_:idp', {
+      action: authWith
+    }],
+    ['all', '/auth/google(\\?.*)?', {
+      action: google
+    }],
+    ['head', '/auth/google(\\?.*)?', {
+      action: google
+    }],
+    ['all', '/auth/github(\\?.*)?', {
+      action: github
+    }],
+    ['head', '/auth/github(\\?.*)?', {
+      action: github
+    }],
+    ['all', '/auth/facebook(\\?.*)?', {
+      action: facebook
+    }],
+    ['head', '/auth/facebook(\\?.*)?', {
+      action: facebook
+    }],
+    ['all', '/auth/persona(\\?.*)?', {
+      action: persona
+    }],
+    ['head', '/auth/persona(\\?.*)?', {
+      action: persona
+    }],
+    ['get', '/auth/logout', {
+      action: logout
+    }]
   ];
 }
 

@@ -58,11 +58,11 @@
       <p>You must <a href="{{../config.base_address}}/auth">sign in</a> to leave a comment</p>
     </div>
     {{/if}}
-    {{#unless comments}}
+    {{#unless post.comments}}
     {{^}}
-    {{#each comments}}
+    {{#each post.comments}}
     <article class="card">
-    <h1>Posted by {{user_name}} on <time datetime="{{date_format inserted "YYYY-mm-dd HH:mm:ss"}}">{{date_format inserted "dddd, MMMM Do YYYY, HH:mm"}}</time>:</h1>
+    <h1>Posted by {{user_name}} on <time datetime="{{date_format inserted_at "YYYY-mm-dd HH:mm:ss"}}">{{date_format inserted_at "dddd, MMMM Do YYYY, HH:mm"}}</time>:</h1>
     {{{markdown content}}}
     </article>
     {{/each}}

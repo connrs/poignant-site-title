@@ -6,15 +6,20 @@ var postActivityStore = require('../../lib/store/post_activity.js');
 var identityTokenStore = require('../../lib/store/identity_token.js');
 
 function init(app, done) {
-  app.store = {
-    post: postStore(app.storeClient),
-    tag: tagStore(app.storeClient),
-    comment: commentStore(app.storeClient),
-    user: userStore(app.storeClient),
-    postActivity: postActivityStore(app.storeClient),
-    identityToken: identityTokenStore(app.storeClient, app.env.secret)
-  };
-  done();
+  try {
+    app.store = {
+      post: postStore(app.storeClient),
+      tag: tagStore(app.storeClient),
+      comment: commentStore(app.storeClient),
+      user: userStore(app.storeClient),
+      postActivity: postActivityStore(app.storeClient),
+      identityToken: identityTokenStore(app.storeClient, app.env.secret)
+    };
+    done();
+  }
+  catch (e) {
+    done(e);
+  }
 };
 
 module.exports = init;

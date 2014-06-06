@@ -48,7 +48,7 @@
           {{/in}}
           <td><label for="comment_id_{{comment_id}}">{{user_name}}</label></td>
           <td>{{content}}</td>
-          <td class="hidden-lowwidth">{{date_format inserted "DD/MM/YYYY"}}</td>
+          <td class="hidden-lowwidth">{{date_format inserted_at "DD/MM/YYYY"}}</td>
           <td class="hidden-lowwidth">{{comment_status}}</td>
           {{#eq comment_status_type_id 1}}
           <td><a href="{{../../config.admin_base_address}}/comments/approve/{{comment_id}}" role="button">Approve</a></td>

@@ -16,9 +16,9 @@
 <link rel="icon" type="image/x-icon" href="{{{config.assets_base_address}}}/img/favicon.png">
 <link rel="icon" type="icon" href="{{{config.assets_base_address}}}/img/apple-touch-icon.png">
 <link href='{{{config.assets_base_address}}}/img/apple-touch-icon-114.png' rel='apple-touch-icon-precomposed' />
-{{#eachkeys config.linkrel}}
-<link rel="{{this.key}}" href="{{this.value}}">
-{{/eachkeys}}
+<link rel="openid2.provider" href="{{config.linkrel_openid2_provider}}">
+<link rel="openid2.local_id" href="{{config.linkrel_openid2_local_id}}">
+<link rel="publisher" href="{{config.linkrel_publisher}}">
 {{#if page.title}}
 <title>{{page.title}} - {{config.site_title}}</title>
 {{else}}

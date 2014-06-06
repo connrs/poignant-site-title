@@ -10,7 +10,10 @@ var app = {
       port: process.env.DB_PORT
     },
     stomp: {
-      host: process.env.STOMP_HOST
+      host: process.env.STOMP_HOST,
+      username: process.env.STOMP_USER,
+      password: process.env.STOMP_PASS,
+      port: process.env.STOMP_PORT
     }
   }
 };

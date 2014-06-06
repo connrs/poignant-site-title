@@ -27,9 +27,9 @@
     "idp-facebook": "^0.1.0",
     "idp-google": "^0.2.0",
     "idp-github": "^0.1.0",
-    "ftybr": "^0.3.1",
+    "ftybr": "^0.4.0",
     "pg-sugar": "0.0.2",
-    "stomp-emitter": "0.0.1",
+    "stomp-emitter": "^0.1.0",
     "barnacle-mode": "0.0.2",
     "barnacle-add-to": "git://github.com/connrs/node-barnacle-add-to.git",
     "barnacle-redirect": "git://github.com/connrs/node-barnacle-redirect.git",
@@ -37,7 +37,8 @@
     "barnacle-parse-formdata": "git://github.com/connrs/node-barnacle-parse-formdata.git",
     "barnacle-flash-messages": "git://github.com/connrs/node-barnacle-flash-messages.git",
     "barnacle-view": "0.0.1",
-    "http-errors": "git://github.com/connrs/node-http-errors.git"
+    "http-errors": "git://github.com/connrs/node-http-errors.git",
+    "bookshelf": "^0.6.10"
   },
   "devDependencies": {
     "grunt": "~0.4.1"
