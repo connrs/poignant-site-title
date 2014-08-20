@@ -127,6 +127,7 @@ PostCollection.count = function (options) {
   }
 
   query = query.whereNull('post_status.deleted_at');
+  query = query.whereNull('post.deleted_at');
 
   return query.count('*').then(function (result) {
     if (!result || !result[0]) {

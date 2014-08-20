@@ -1,0 +1,16 @@
+<main role="main" class="row">
+  <div class="columns nine">
+    {{> flash_message_alert}}
+    <h1>Reload</h1>
+    <p>Use this section of the website to reload the configuration. Click 'Reload templates' if you have made changes to the templates and wish to reload them without restarting the entire application. Click 'Reload configuration' if you have made configuration changes using an external application and wish to reload them without restarting the entire application.</p>
+    <form method="post" action="{{config.admin_base_address}}/settings/reload">
+      <div class="buttons">
+        <button name="action" value="templates" type="submit">Reload templates</button>
+        <button name="action" value="config" type="submit">Reload configuration</button>
+      </div>
+    </form>
+  </div>
+  <div class="columns three">
+    {{> admin_sidebar}}
+  </div>
+</main>

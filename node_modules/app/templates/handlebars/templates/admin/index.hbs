@@ -1,0 +1,55 @@
+<main role="main" class="row">
+  <div class="columns nine">
+    {{> flash_message_alert}}
+    <h1>Dashboard</h1>
+    <section class="card">
+      <h1>Post activity</h1>
+      <canvas id="post_activity"></canvas>
+    </section>
+  </div>
+  <div class="columns three">
+    {{> admin_sidebar}}
+  </div>
+</main>
+<script>
+  var raw = {
+    postActivity: {{stringify post_activity}}
+  };
+  var charts = [];
+  var chartDefaults = {
+    scaleOverride: true,
+    scaleSteps: 10,
+    scaleStepWidth: 1,
+    scaleStartValue: 0
+  };
+
+  charts.push({
+    element: document.getElementById('post_activity'),
+    data: {
+      labels: raw.postActivity.map(function (m) { return m.year_month; }),
+      datasets: [
+          {
+            fillColor : "rgba(151,187,205,0.5)",
+            strokeColor : "rgba(151,187,205,1)",
+            pointColor : "rgba(151,187,205,1)",
+            pointStrokeColor : "#fff",
+            data: raw.postActivity.map(function (m) { return m.post_count; })
+          }
+      ]
+    }
+  });
+
+  function redrawCharts(charts) {
+    charts.forEach(function (chart) {
+      var width = chart.element.parentElement.offsetWidth;
+      var height = width * 0.4;
+      if (chart.element.getAttribute('width') != width) {
+        chart.element.setAttribute('width', width);
+        chart.element.setAttribute('height', height);
+        new Chart(chart.element.getContext('2d')).Bar(chart.data);
+      }
+    });
+  }
+  window.addEventListener('DOMContentLoaded', redrawCharts.bind(null, charts));
+  window.addEventListener('resize', redrawCharts.bind(null, charts));
+</script>

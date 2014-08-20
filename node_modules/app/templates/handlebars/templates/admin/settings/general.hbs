@@ -1,0 +1,40 @@
+<main role="main" class="row">
+  <div class="columns nine">
+    {{> flash_message_alert}}
+    <h1>Standing data</h1>
+    <p>This section will allow you to configure the standing data for the site.</p>
+    <form method="post" action="{{config.admin_base_address}}/settings/general">
+      <div>
+        <label for="site_title" id="site_title_label">Site title</label>
+        <input type="text" name="site_title" id="site_title" value="{{standing_data.site_title}}">
+      </div>
+      <div>
+        <label for="base_address" id="base_address_label">Base address</label>
+        <input type="text" name="base_address" id="base_address" value="{{standing_data.base_address}}">
+      </div>
+      <div>
+        <label for="root_address" id="root_address_label">Root address</label>
+        <input type="text" name="root_address" id="root_address" value="{{standing_data.root_address}}">
+      </div>
+      <div>
+        <label for="admin_base_address" id="admin_base_address_label">Admin base address</label>
+        <input type="text" name="admin_base_address" id="admin_base_address" value="{{standing_data.admin_base_address}}">
+      </div>
+      <div>
+        <label for="assets_base_address" id="assets_base_address_label">Assets base address</label>
+        <input type="text" name="assets_base_address" id="assets_base_address" value="{{standing_data.assets_base_address}}">
+      </div>
+      <div>
+        <label for="assets_root_address" id="assets_root_address_label">Assets root address</label>
+        <input type="text" name="assets_root_address" id="assets_root_address" value="{{standing_data.assets_root_address}}">
+      </div>
+      <div class="buttons">
+        <a role="button" href="{{config.admin_base_address}}/settings">Exit</a>
+        <input type="submit" value="Submit">
+      </div>
+    </form>
+  </div>
+  <div class="columns three">
+    {{> admin_sidebar}}
+  </div>
+</main>

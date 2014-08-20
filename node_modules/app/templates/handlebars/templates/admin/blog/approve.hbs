@@ -1,0 +1,34 @@
+<main role="main" class="row">
+<div class="columns nine">
+  {{> flash_message_alert}}
+  <h1 class="">Posts</h2>
+  <p>To edit a post, use the filters below and press the 'Edit' beside your chosen post.</p>
+  {{#if posts}}
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th class="fit_width">Published</th>
+        <th class="fit_width">Status</th>
+        <th class="fit_width">Approve</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each posts}}
+      <tr>
+        <td><label for="post_id_{{post_id}}">{{title}}</label></td>
+        <td>{{date_format published "DD/MM/YYYY"}}</td>
+        <td>{{post_status}}</td>
+        <td><a href="{{../../config.admin_base_address}}/posts/approve/{{post_id}}" role="button">Approve</a></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p>There are no posts requiring approval.</p>
+  {{/if}}
+</div>
+<div class="columns three">
+  {{> admin_sidebar}}
+</div>
+</main>

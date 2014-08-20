@@ -12,15 +12,20 @@ var testController = require('../controller/test.js');
 //var newApi10WebmentionController = require('../controller/api/1.0/webmention.js');
 
 function init(app, done) {
+  var opts = {
+    config: app.config,
+    navigation: app.navigation,
+    session: app.session
+  };
   app.controllers = [
-    blogController(app.store.comment, app.stomp),
+    blogController(opts, app.store.comment, app.stomp),
     blogRssController(app.store.post),
     adminBlogController(app.store.post, app.store.tag, app.types, app.stomp),
     adminTagController(app.store.tag),
     adminCommentController(app.store.comment, app.types),
-    authController(app.idp, app.store),
+    authController(opts, app.idp, app.store),
     accountController(app.store.user),
-    adminController(app.store.postActivity),
+    adminController(opts, app.store.postActivity),
     adminSettingsController(app.events, app.config),
     testController()
   ];

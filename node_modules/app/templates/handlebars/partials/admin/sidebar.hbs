@@ -1,0 +1,66 @@
+{{#if current_user}}
+<aside>
+  {{#if current_user.role_id}}
+  <h1>Admin menu</h1>
+  <div class="card">
+    <ul class="aside_list">
+      <li{{currentString current_navigation "admin_index"}}>
+        <a href="{{../../config.admin_base_address}}">Dashboard</a>
+      </li>
+      <li{{currentString current_navigation "admin_blog_index"}}>
+        <a href="{{config.admin_base_address}}/posts">Posts</a>
+        {{#leftMatch current_navigation "admin_blog"}}
+        <ul>
+          {{#in current_user.role_name "su" "editor"}}
+          <li{{currentString current_navigation "admin_blog_approve"}}>
+            <a href="{{config.admin_base_address}}/posts/approve">Approve posts</a>
+          </li>
+          {{/in}}
+          <li{{currentString current_navigation "admin_blog_new"}}>
+            <a href="{{config.admin_base_address}}/posts/new">New post</a>
+          </li>
+        </ul>
+        {{/leftMatch}}
+      </li>
+      {{#in current_user.role_name "su" "editor"}}
+      <li{{currentString current_navigation "admin_comments_index"}}>
+        <a href="{{config.admin_base_address}}/comments">Comments</a>
+      </li>
+      {{/in}}
+      {{#in current_user.role_name "su" "editor"}}
+      <li{{currentString current_navigation "admin_tags_index"}}>
+        <a href="{{config.admin_base_address}}/tags">Tags</a>
+        {{#leftMatch current_navigation "admin_tags"}}
+        <ul>
+          <li{{currentString current_navigation "admin_tags_new"}}>
+            <a href="{{config.admin_base_address}}/tags/new">New tag</a>
+          </li>
+        </ul>
+        {{/leftMatch}}
+      </li>
+      {{/in}}
+      {{#in current_user.role_name "su"}}
+      <li{{currentString current_navigation "admin_users_index"}}>
+        <a href="{{config.admin_base_address}}/users">Users</a>
+      </li>
+      {{/in}}
+      {{#in current_user.role_name "su"}}
+      <li{{currentString current_navigation "admin_settings_index"}}>
+        <a href="{{../../config.admin_base_address}}/settings">Settings</a>
+        {{#leftMatch current_navigation "admin_settings"}}
+        <ul>
+          <li{{currentString current_navigation "admin_settings_reload"}}>
+            <a href="{{config.admin_base_address}}/settings/reload">Reload</a>
+          </li>
+          <li{{currentString current_navigation "admin_settings_navigation"}}>
+            <a href="{{config.admin_base_address}}/settings/navigation">Navigation</a>
+          </li>
+        </ul>
+        {{/leftMatch}}
+      </li>
+      {{/in}}
+    </ul>
+  </div>
+  {{/if}}
+  </aside>
+{{/if}}

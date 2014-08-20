@@ -1,56 +1,142 @@
-var barnacleMode = require('barnacle-mode');
-var Controller = require('./core');
+var templateStream = require('app/stream/template-stream');
+var formFilterStream = require('app/stream/form-filter-stream');
+var addTo = require('barnacle-add-to');
+var redirect = require('barnacle-redirect');
+var redir = function (opts) {
+  return redirect(opts.response);
+}
+var flashMessages = require('barnacle-flash-messages')(['flash_message']);
+var hasPermission = require('../../lib/middleware/barnacles/has-permission');
+var StreamActionController = require('app/controller/stream-action');
+var ParseFormData = require('barnacle-parse-formdata');
+var formData = function (opts) {
+  return new ParseFormData(opts);
+};
+
+
 var User = require('../../lib/model/user.js');
 var IdentityToken = require('../../lib/model/identity_token.js');
 var HTTPError = require('http-errors');
 
-function AuthController() {
-  var authWith = barnacleMode(this.authWith.bind(this));
-  var google = barnacleMode(this.google.bind(this));
-  var github = barnacleMode(this.github.bind(this));
-  var facebook = barnacleMode(this.facebook.bind(this));
-  var persona = barnacleMode(this.persona.bind(this));
-  var logout = barnacleMode(this.logout.bind(this));
+function AuthController(options) {
+  var authWith = this._createActionStream('authWith');
+  var google = this._createActionStream('google');
+  var github = this._createActionStream('github');
+  var facebook = this._createActionStream('facebook');
+  var persona = this._createActionStream('persona');
+  var logout = this._createActionStream('logout');
+  var sess = function (opts) {
+    return options.session(opts.request, opts.response);
+  };
+  var addNav = function () {
+    return addTo('navigation', options.navigation);
+  };
+  var addConfig = function () {
+    return addTo('config', options.config);
+  };
 
-  Controller.apply(this, arguments);
+  StreamActionController.apply(this, arguments);
   this._routes = [
-    ['all', '/auth/with_:idp', {
-      action: authWith
-    }],
-    ['head', '/auth/with_:idp', {
-      action: authWith
-    }],
-    ['all', '/auth/google(\\?.*)?', {
-      action: google
-    }],
-    ['head', '/auth/google(\\?.*)?', {
-      action: google
-    }],
-    ['all', '/auth/github(\\?.*)?', {
-      action: github
-    }],
-    ['head', '/auth/github(\\?.*)?', {
-      action: github
-    }],
-    ['all', '/auth/facebook(\\?.*)?', {
-      action: facebook
-    }],
-    ['head', '/auth/facebook(\\?.*)?', {
-      action: facebook
-    }],
-    ['all', '/auth/persona(\\?.*)?', {
-      action: persona
-    }],
-    ['head', '/auth/persona(\\?.*)?', {
-      action: persona
-    }],
-    ['get', '/auth/logout', {
-      action: logout
-    }]
+    ['all', '/auth/with_:idp', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      authWith
+    ]],
+    ['head', '/auth/with_:idp', [
+      formData,
+      sess,
+      redir,
+      authWith
+    ]],
+    ['all', '/auth/google(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      google
+    ]],
+    ['head', '/auth/google(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      google
+    ]],
+    ['all', '/auth/github(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      github
+    ]],
+    ['head', '/auth/github(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      github
+    ]],
+    ['all', '/auth/facebook(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      facebook
+    ]],
+    ['head', '/auth/facebook(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      facebook
+    ]],
+    ['all', '/auth/persona(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      persona
+    ]],
+    ['head', '/auth/persona(\\?.*)?', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      persona
+    ]],
+    ['get', '/auth/logout', [
+      formData,
+      sess,
+      redir,
+      flashMessages,
+      addNav,
+      addConfig,
+      logout
+    ]]
   ];
 }
 
-AuthController.prototype = Object.create(Controller.prototype, { constructor: AuthController });
+AuthController.prototype = Object.create(StreamActionController.prototype, { constructor: AuthController });
 
 AuthController.prototype.setIDP = function (idp) {
   this._idp = idp;
@@ -60,16 +146,7 @@ AuthController.prototype.setStore = function (store) {
   this._store = store;
 };
 
-AuthController.prototype.index = function (obj, done) {
-  var template = this._template(obj, 'default');
-  obj.output = template('auth_index', {
-    page: { title: 'Sign in' }
-  });
-  done(null, obj);
-};
-
 AuthController.prototype.authWith = function (obj, done) {
-  var template = this._template(obj, 'default');
   var params = {
     state: obj.session.uid()
   };
@@ -108,7 +185,7 @@ AuthController.prototype.google = function (obj, done) {
             });
           }
           else {
-            obj.session.set('current_user_id', userData.user_id, function (err) {
+            obj.session.set('user_id', userData.user_id, function (err) {
               var user = this._user();
               var idToken = this._identityToken();
               user.setData({
@@ -158,7 +235,7 @@ AuthController.prototype.github = function (obj, done) {
             });
           }
           else {
-            obj.session.set('current_user_id', userData.user_id, function (err) {
+            obj.session.set('user_id', userData.user_id, function (err) {
               var user = this._user();
               user.setData({
                 software_version_id: obj.config.softwareVersion,
@@ -196,7 +273,7 @@ AuthController.prototype.facebook = function (obj, done) {
             });
           }
           else {
-            obj.session.set('current_user_id', userData.user_id, function (err) {
+            obj.session.set('user_id', userData.user_id, function (err) {
               var user = this._user();
               user.setData({
                 software_version_id: obj.config.softwareVersion,
@@ -234,7 +311,7 @@ AuthController.prototype.persona = function (obj, done) {
           });
         }
         else {
-          obj.session.set('current_user_id', userData.user_id, function (err) {
+          obj.session.set('user_id', userData.user_id, function (err) {
             var user = this._user();
             user.setData({
               software_version_id: obj.config.softwareVersion,
@@ -269,8 +346,8 @@ AuthController.prototype._identityToken = function () {
   return new IdentityToken(this._store.identityToken);
 };
 
-function newAuthController(idp, store) {
-  var controller = new AuthController();
+function newAuthController(opts, idp, store) {
+  var controller = new AuthController(opts);
   controller.setIDP(idp);
   controller.setStore(store);
   return controller;

@@ -8,6 +8,7 @@ function initEvents (app, done) {
     done();
   }, function (err) {
     console.error(err);
+    console.error(err.stack);
   });
 };
 

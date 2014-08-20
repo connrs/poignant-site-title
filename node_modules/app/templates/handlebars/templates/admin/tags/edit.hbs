@@ -1,0 +1,31 @@
+<main role="main" class="row">
+<div class="columns nine">
+  {{> flash_message_alert}}
+  <h1>{{page.title}}</h2>
+  <p>To edit the tag, update the fields below and press 'Submit' when finished.</p>
+  {{> validation_errors errors}}
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+    <input type="hidden" name="tag_id" value="{{tag.tag_id}}">
+    <div class="full">
+      <label>Name:</label>
+      <span class="input_substitute">{{tag.name}}</span>
+    </div>
+    <div class="full">
+      <label for="tags_pretty_name">Pretty name:</label>
+      <input type="text" name="pretty_name" id="tags_pretty_name" value="{{attrSafe tag.pretty_name}}">
+    </div>
+    <div class="full">
+      <label for="tags_content">Content:</label>
+      <textarea name="content" id="tags_content" rows="12" cols="12">{{tag.content}}</textarea>
+    </div>
+    <div class="buttons">
+      <a role="button" href="{{config.admin_base_address}}/tags">Exit</a>
+      <input type="submit" value="Save changes">
+    </div>
+  </form>
+</div>
+<div class="columns three">
+  {{> admin_sidebar}}
+</div>
+</main>

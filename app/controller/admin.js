@@ -1,53 +1,83 @@
-var barnacleMode = require('barnacle-mode');
-var Controller = require('./core');
+var templateStream = require('app/stream/template-stream');
+var formFilterStream = require('app/stream/form-filter-stream');
+var addTo = require('barnacle-add-to');
+var redirect = require('barnacle-redirect');
+var redir = function (opts) {
+  return redirect(opts.response);
+};
+var getUserStreamBuilder = require('app/builder/get-user-stream')();
+var authoriseUserStreamBuilder = require('app/builder/authorise-user-stream');
+var templateStreamBuilder = require('app/builder/template-stream');
+var parseFormDataStreamBuilder = require('app/builder/parse-form-data-stream')();
+var flashMessages = require('barnacle-flash-messages')(['flash_message']);
+var StreamActionController = require('app/controller/stream-action');
+var ParseFormData = require('barnacle-parse-formdata');
+var formData = function (opts) {
+  return new ParseFormData(opts);
+};
 var HTTPError = require('http-errors');
 
-function AdminController() {
-  Controller.apply(this, arguments);
-  var index = barnacleMode(this.index.bind(this));
+function AdminController(options) {
+  var sess = function (opts) {
+    return options.session(opts.request, opts.response);
+  };
+  var addNav = function () {
+    return addTo('navigation', options.navigation);
+  };
+  var addConfig = function () {
+    return addTo('config', options.config);
+  };
+  StreamActionController.apply(this, arguments);
 
   this._routes = [
-    ['get', '/admin', {
-      action: index
-    }],
-    ['head', '/admin', {
-      action: index
-    }]
+    ['get', '/admin', [
+      parseFormDataStreamBuilder,
+      sess,
+      getUserStreamBuilder,
+      redir,
+      authoriseUserStreamBuilder(),
+      flashMessages,
+      addNav,
+      addConfig,
+      this._createActionStream('index'),
+      templateStreamBuilder('admin','admin_index')
+    ]],
+    ['head', '/admin', [
+      parseFormDataStreamBuilder,
+      sess,
+      getUserStreamBuilder,
+      redir,
+      authoriseUserStreamBuilder(),
+      flashMessages,
+      addNav,
+      addConfig,
+      this._createActionStream('index'),
+      templateStreamBuilder('admin','admin_index')
+    ]]
   ];
 }
 
-AdminController.prototype = Object.create(Controller.prototype, { constructor: AdminController });
+AdminController.prototype = Object.create(StreamActionController.prototype, { constructor: AdminController });
 
 AdminController.prototype.setPostActivityStore = function (postActivityStore) {
   this._postActivityStore = postActivityStore;
 };
 
 AdminController.prototype.index = function (obj, done) {
-  if (!obj.hasPermission()) { return done(new HTTPError.NotAuthorizedError()); }
-
-  var count = 1;
-  var template = this._template(obj, 'admin');
-  var context = {
-    'current_navigation': 'admin_index'
-  }
-
-  function render() {
-    if (--count === 0) {
-      done(null, obj);
-    }
-  }
-
   this._postActivityStore.getActivity(function (err, postActivity) {
     if (err) { return done(err); }
 
-    context.post_activity = postActivity;
-    obj.output = template(context.current_navigation, context);
+    obj.context = {
+      current_navigation: 'admin_index',
+      post_activity: postActivity
+    }
+
     done(null, obj);
-  }.bind(this));
+  });
 };
 
-function newAdminController(postActivityStore) {
-  var controller = new AdminController();
+function newAdminController(opts, postActivityStore) {
+  var controller = new AdminController(opts);
   controller.setPostActivityStore(postActivityStore);
   return controller;
 }

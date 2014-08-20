@@ -1,0 +1,20 @@
+<main role="main" class="row">
+<div class="columns nine">
+  {{> flash_message_alert}}
+  <h1>Delete tags</h1>
+  <p>Are you sure that you wish to delete the selected tags?</p>
+  <form method="post" action="{{config.admin_base_address}}/tags/confirm_delete">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+    {{#each tag_ids}}
+    <input type="hidden" name="tag_id[]" value="{{this}}">
+    {{/each}}
+    <div class="buttons">
+      <a role="button" href="{{config.admin_base_address}}/tags">Exit</a>
+      <input type="submit" value="Delete">
+    </div>
+  </form>
+</div>
+<div class="columns three">
+  {{> sidebar}}
+</div>
+</main>

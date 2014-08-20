@@ -1,2 +1,5 @@
 node_modules
 !node_modules/lib
+!node_modules/app
+!node_modules/dao
+!node_modules/.bin/test-runner

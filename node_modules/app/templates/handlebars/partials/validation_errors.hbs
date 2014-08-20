@@ -1,0 +1,12 @@
+{{#if this}}
+  <div class="errors">
+    <p>The following errors were encountered:</p>
+    <ul>
+      {{#eachkeys this}}
+      {{#each value}}
+      <li>{{this}}</li>
+      {{/each}}
+      {{/eachkeys}}
+    </ul>
+  </div>
+{{/if}}
